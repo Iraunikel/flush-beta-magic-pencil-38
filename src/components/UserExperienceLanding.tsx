@@ -190,96 +190,155 @@ const UserExperienceLanding: React.FC<UserExperienceLandingProps> = ({ onStartAn
       <section ref={featuresRef} className="py-24 px-4">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-4">
-              Revolutionary Interface
+            <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-6">
+              The Haptic Revolution
             </h2>
-            <p className="text-xl text-muted-foreground">
-              Where creativity meets artificial intelligence
+            <p className="text-xl text-muted-foreground mb-4">
+              Training conversations, not just editing text
             </p>
+            <div className="max-w-3xl mx-auto">
+              <div className="relative p-6 bg-gradient-to-br from-primary/10 via-accent/5 to-primary-glow/10 rounded-2xl border border-primary/20">
+                <div className="flex items-center justify-between mb-4">
+                  <Badge className="bg-red-500/20 text-red-400 border-red-500/30">
+                    Before
+                  </Badge>
+                  <Type className="w-8 h-8 text-muted-foreground" />
+                </div>
+                <p className="text-muted-foreground text-left mb-4">
+                  "Please write a marketing email but make it more engaging and less corporate..."
+                </p>
+                <p className="text-xs text-muted-foreground text-left italic">
+                  *Cross fingers and hope the AI understands what "engaging" means*
+                </p>
+              </div>
+              
+              <div className="flex justify-center my-8">
+                <div className="w-px h-12 bg-gradient-to-b from-transparent via-primary to-transparent" />
+              </div>
+              
+              <div className="relative p-6 bg-gradient-to-br from-annotation-high/10 via-annotation-medium/5 to-annotation-low/10 rounded-2xl border border-annotation-high/20">
+                <div className="flex items-center justify-between mb-4">
+                  <Badge className="bg-annotation-high/20 text-annotation-high border-annotation-high/30">
+                    After
+                  </Badge>
+                  <div className="flex gap-2">
+                    <Palette className="w-6 h-6 text-annotation-high" />
+                    <MousePointer className="w-6 h-6 text-annotation-medium" />
+                    <Zap className="w-6 h-6 text-primary" />
+                  </div>
+                </div>
+                <p className="text-foreground text-left mb-4">
+                  <span className="bg-annotation-high/20 px-1 rounded">Direct visual feedback</span> on AI output — 
+                  <span className="bg-annotation-medium/20 px-1 rounded">highlight what works</span>, 
+                  <span className="bg-annotation-low/20 px-1 rounded line-through">cross out what doesn't</span>
+                </p>
+                <p className="text-xs text-primary text-left italic">
+                  *AI learns your preferences instantly through tactile interaction*
+                </p>
+              </div>
+            </div>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            <Card className="feature-card group relative overflow-hidden p-8 bg-gradient-to-br from-primary/5 to-transparent border-primary/20 hover:border-primary/40 transition-all duration-500 hover:shadow-glow">
+            <Card className="feature-card group relative overflow-hidden p-8 bg-gradient-to-br from-primary/5 to-transparent border-primary/20 hover:border-primary/40 transition-all duration-500 hover:shadow-glow cursor-pointer">
               <div className="absolute top-4 right-4">
-                <Palette className="w-8 h-8 text-primary-glow" />
+                <Palette className="w-8 h-8 text-primary-glow group-hover:rotate-12 transition-transform duration-300" />
               </div>
-              <h3 className="text-2xl font-bold text-foreground mb-4">Canvas Drawing</h3>
+              <h3 className="text-2xl font-bold text-foreground mb-4">Intuitive Canvas</h3>
               <p className="text-muted-foreground mb-4">
-                Express your thoughts with fluid gestures. Draw, annotate, and highlight with precision.
+                Like highlighting on paper — but your gestures become structured AI instructions.
               </p>
               <div className="flex gap-2">
-                <Badge variant="secondary" className="text-xs">Gesture Recognition</Badge>
-                <Badge variant="secondary" className="text-xs">Multi-touch</Badge>
+                <Badge variant="secondary" className="text-xs">Natural Gestures</Badge>
+                <Badge variant="secondary" className="text-xs">Instant Translation</Badge>
+              </div>
+              <div className="absolute bottom-4 left-8 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <div className="text-xs text-primary">✨ Draw your thoughts</div>
               </div>
             </Card>
 
-            <Card className="feature-card group relative overflow-hidden p-8 bg-gradient-to-br from-accent/5 to-transparent border-accent/20 hover:border-accent/40 transition-all duration-500 hover:shadow-glow">
+            <Card className="feature-card group relative overflow-hidden p-8 bg-gradient-to-br from-accent/5 to-transparent border-accent/20 hover:border-accent/40 transition-all duration-500 hover:shadow-glow cursor-pointer">
               <div className="absolute top-4 right-4">
-                <MousePointer className="w-8 h-8 text-accent" />
+                <MousePointer className="w-8 h-8 text-accent group-hover:scale-110 transition-transform duration-300" />
               </div>
-              <h3 className="text-2xl font-bold text-foreground mb-4">Smart Selection</h3>
+              <h3 className="text-2xl font-bold text-foreground mb-4">Contextual Weighting</h3>
               <p className="text-muted-foreground mb-4">
-                Intelligent text analysis with contextual understanding and semantic highlighting.
+                Point, click, weight. Your cursor becomes a precision tool for training AI understanding.
               </p>
               <div className="flex gap-2">
-                <Badge variant="secondary" className="text-xs">AI-Powered</Badge>
-                <Badge variant="secondary" className="text-xs">Context-Aware</Badge>
+                <Badge variant="secondary" className="text-xs">In-Context</Badge>
+                <Badge variant="secondary" className="text-xs">Visual Weighting</Badge>
+              </div>
+              <div className="absolute bottom-4 left-8 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <div className="text-xs text-accent">⚡ Point & teach</div>
               </div>
             </Card>
 
-            <Card className="feature-card group relative overflow-hidden p-8 bg-gradient-to-br from-primary-glow/5 to-transparent border-primary-glow/20 hover:border-primary-glow/40 transition-all duration-500 hover:shadow-glow">
+            <Card className="feature-card group relative overflow-hidden p-8 bg-gradient-to-br from-primary-glow/5 to-transparent border-primary-glow/20 hover:border-primary-glow/40 transition-all duration-500 hover:shadow-glow cursor-pointer">
               <div className="absolute top-4 right-4">
-                <Brain className="w-8 h-8 text-primary-glow" />
+                <Brain className="w-8 h-8 text-primary-glow group-hover:pulse transition-all duration-300" />
               </div>
-              <h3 className="text-2xl font-bold text-foreground mb-4">Analytics Engine</h3>
+              <h3 className="text-2xl font-bold text-foreground mb-4">Learning Loop</h3>
               <p className="text-muted-foreground mb-4">
-                Real-time insights and performance metrics to optimize your annotation workflow.
+                Every interaction trains the next response. Close the gap between intention and interpretation.
               </p>
               <div className="flex gap-2">
-                <Badge variant="secondary" className="text-xs">Real-time</Badge>
-                <Badge variant="secondary" className="text-xs">KPI Tracking</Badge>
+                <Badge variant="secondary" className="text-xs">Adaptive Learning</Badge>
+                <Badge variant="secondary" className="text-xs">Feedback Loop</Badge>
+              </div>
+              <div className="absolute bottom-4 left-8 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <div className="text-xs text-primary-glow">🧠 Learns & adapts</div>
               </div>
             </Card>
 
-            <Card className="feature-card group relative overflow-hidden p-8 bg-gradient-to-br from-annotation-high/5 to-transparent border-annotation-high/20 hover:border-annotation-high/40 transition-all duration-500 hover:shadow-glow">
+            <Card className="feature-card group relative overflow-hidden p-8 bg-gradient-to-br from-annotation-high/5 to-transparent border-annotation-high/20 hover:border-annotation-high/40 transition-all duration-500 hover:shadow-glow cursor-pointer">
               <div className="absolute top-4 right-4">
-                <Target className="w-8 h-8 text-annotation-high" />
+                <Target className="w-8 h-8 text-annotation-high group-hover:rotate-45 transition-transform duration-300" />
               </div>
-              <h3 className="text-2xl font-bold text-foreground mb-4">Precision Tools</h3>
+              <h3 className="text-2xl font-bold text-foreground mb-4">Precision Intent</h3>
               <p className="text-muted-foreground mb-4">
-                Fine-tuned controls for exact annotations with pixel-perfect accuracy.
+                From vague prompts to crystal-clear communication. Make machines understand nuance.
               </p>
               <div className="flex gap-2">
-                <Badge variant="secondary" className="text-xs">Precision</Badge>
-                <Badge variant="secondary" className="text-xs">Customizable</Badge>
+                <Badge variant="secondary" className="text-xs">Nuanced Control</Badge>
+                <Badge variant="secondary" className="text-xs">Clear Intent</Badge>
+              </div>
+              <div className="absolute bottom-4 left-8 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <div className="text-xs text-annotation-high">🎯 Precise control</div>
               </div>
             </Card>
 
-            <Card className="feature-card group relative overflow-hidden p-8 bg-gradient-to-br from-annotation-medium/5 to-transparent border-annotation-medium/20 hover:border-annotation-medium/40 transition-all duration-500 hover:shadow-glow">
+            <Card className="feature-card group relative overflow-hidden p-8 bg-gradient-to-br from-annotation-medium/5 to-transparent border-annotation-medium/20 hover:border-annotation-medium/40 transition-all duration-500 hover:shadow-glow cursor-pointer">
               <div className="absolute top-4 right-4">
-                <Layers className="w-8 h-8 text-annotation-medium" />
+                <Layers className="w-8 h-8 text-annotation-medium group-hover:translate-y-1 transition-transform duration-300" />
               </div>
-              <h3 className="text-2xl font-bold text-foreground mb-4">Multi-Layer</h3>
+              <h3 className="text-2xl font-bold text-foreground mb-4">Conversation Layers</h3>
               <p className="text-muted-foreground mb-4">
-                Organize annotations in layers for complex projects with hierarchical structure.
+                Build complex understanding through layered interactions. Depth without complexity.
               </p>
               <div className="flex gap-2">
-                <Badge variant="secondary" className="text-xs">Organized</Badge>
-                <Badge variant="secondary" className="text-xs">Hierarchical</Badge>
+                <Badge variant="secondary" className="text-xs">Multi-dimensional</Badge>
+                <Badge variant="secondary" className="text-xs">Contextual Depth</Badge>
+              </div>
+              <div className="absolute bottom-4 left-8 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <div className="text-xs text-annotation-medium">📚 Deep context</div>
               </div>
             </Card>
 
-            <Card className="feature-card group relative overflow-hidden p-8 bg-gradient-to-br from-primary/5 to-transparent border-primary/20 hover:border-primary/40 transition-all duration-500 hover:shadow-glow">
+            <Card className="feature-card group relative overflow-hidden p-8 bg-gradient-to-br from-primary/5 to-transparent border-primary/20 hover:border-primary/40 transition-all duration-500 hover:shadow-glow cursor-pointer">
               <div className="absolute top-4 right-4">
-                <Sparkles className="w-8 h-8 text-primary" />
+                <Sparkles className="w-8 h-8 text-primary group-hover:animate-spin transition-all duration-300" />
               </div>
-              <h3 className="text-2xl font-bold text-foreground mb-4">Magic Mode</h3>
+              <h3 className="text-2xl font-bold text-foreground mb-4">Paradigm Shift</h3>
               <p className="text-muted-foreground mb-4">
-                AI-assisted annotation suggestions that adapt to your workflow and preferences.
+                The GUI moment for AI interaction. From command-line prompts to visual conversation training.
               </p>
               <div className="flex gap-2">
-                <Badge variant="secondary" className="text-xs">AI-Assisted</Badge>
-                <Badge variant="secondary" className="text-xs">Adaptive</Badge>
+                <Badge variant="secondary" className="text-xs">Revolutionary UX</Badge>
+                <Badge variant="secondary" className="text-xs">Visual Interface</Badge>
+              </div>
+              <div className="absolute bottom-4 left-8 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <div className="text-xs text-primary">🚀 Game changer</div>
               </div>
             </Card>
           </div>
