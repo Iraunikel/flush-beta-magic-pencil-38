@@ -145,13 +145,19 @@ const AnnotationInterface: React.FC<AnnotationInterfaceProps> = ({
     
     // Validate that the selected text matches what we expect from plain text
     const actualSelectedText = plainTextContent.slice(startIndex, endIndex);
-    if (actualSelectedText !== selectedText) {
-      console.warn('Text selection mismatch, falling back to search');
+    if (actualSelectedText.trim() !== selectedText.trim()) {
+      console.log('Text selection mismatch - using fallback search method');
+      console.log('Expected:', selectedText);
+      console.log('Actual:', actualSelectedText);
+      
       // Fallback: find the selected text in plain text content
-      const fallbackStart = plainTextContent.indexOf(selectedText);
-      if (fallbackStart === -1) return;
-      const fallbackEnd = fallbackStart + selectedText.length;
-      return handleAnnotationWithIndices(fallbackStart, fallbackEnd, selectedText, rect, containerRect);
+      const fallbackStart = plainTextContent.indexOf(selectedText.trim());
+      if (fallbackStart === -1) {
+        console.warn('Could not find selected text in content');
+        return;
+      }
+      const fallbackEnd = fallbackStart + selectedText.trim().length;
+      return handleAnnotationWithIndices(fallbackStart, fallbackEnd, selectedText.trim(), rect, containerRect);
     }
 
     return handleAnnotationWithIndices(startIndex, endIndex, selectedText, rect, containerRect);

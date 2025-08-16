@@ -75,10 +75,15 @@ const EnhancedCanvasAnnotation: React.FC<EnhancedCanvasAnnotationProps> = ({
 
   // Initialize triple-layer canvas system
   useEffect(() => {
+    console.log('EnhancedCanvasAnnotation: Initializing with text:', text.substring(0, 100) + '...');
+    
     const textCanvas = textCanvasRef.current;
     const annotationCanvas = annotationCanvasRef.current;
     const overlayCanvas = overlayCanvasRef.current;
-    if (!textCanvas || !annotationCanvas || !overlayCanvas) return;
+    if (!textCanvas || !annotationCanvas || !overlayCanvas) {
+      console.error('Canvas refs not available');
+      return;
+    }
 
     const width = 1024;
     const height = 768;
@@ -109,21 +114,27 @@ const EnhancedCanvasAnnotation: React.FC<EnhancedCanvasAnnotationProps> = ({
   }, [text]);
 
   const drawTextContent = (ctx: CanvasRenderingContext2D, textContent: string) => {
+    console.log('Drawing text content:', textContent.length + ' characters');
+    
+    // Clear canvas with premium white background
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
     
+    // Configure premium text style
     ctx.fillStyle = '#1a1a1a';
     ctx.font = '18px -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
 
+    // Split text into lines and render with better typography
     const lines = textContent.split('\n');
     let y = 80;
     const lineHeight = 28;
     const maxWidth = 880;
 
-    lines.forEach(line => {
+    lines.forEach((line, lineIndex) => {
       if (line.trim()) {
+        // Word wrap for long lines with better spacing
         const words = line.split(' ');
         let currentLine = '';
         
@@ -144,9 +155,13 @@ const EnhancedCanvasAnnotation: React.FC<EnhancedCanvasAnnotationProps> = ({
           ctx.fillText(currentLine, 80, y);
           y += lineHeight;
         }
+      } else {
+        // Empty line spacing
+        y += lineHeight * 0.6;
       }
-      y += lineHeight * 0.6;
     });
+    
+    console.log('Text rendered successfully. Final Y position:', y);
   };
 
   // Enhanced gesture recognition with tactile feedback
@@ -585,20 +600,30 @@ const EnhancedCanvasAnnotation: React.FC<EnhancedCanvasAnnotationProps> = ({
 
       {/* Enhanced Canvas */}
       <Card className="p-6">
-        <div className="relative">
-          <div className="relative border rounded-xl overflow-hidden shadow-canvas bg-canvas-bg canvas-grid">
-            {/* Text layer */}
+        <div className="relative w-full">
+          <div className="relative border rounded-xl overflow-hidden shadow-canvas bg-white w-full" style={{ height: '600px' }}>
+            {/* Text layer - shows the content */}
             <canvas
               ref={textCanvasRef}
-              className="absolute inset-0 w-full h-full"
-              style={{ zIndex: 1 }}
+              className="absolute inset-0 pointer-events-none"
+              style={{ 
+                zIndex: 1,
+                width: '100%',
+                height: '100%',
+                display: 'block'
+              }}
             />
             
-            {/* Annotation layer */}
+            {/* Annotation layer - handles drawing */}
             <canvas
               ref={annotationCanvasRef}
-              className="absolute inset-0 w-full h-full annotation-canvas"
-              style={{ zIndex: 2 }}
+              className="absolute inset-0 annotation-canvas cursor-crosshair"
+              style={{ 
+                zIndex: 2,
+                width: '100%',
+                height: '100%',
+                display: 'block'
+              }}
               onPointerDown={startDrawing}
               onPointerMove={(e) => {
                 updateBrushPreview(e);
@@ -611,8 +636,13 @@ const EnhancedCanvasAnnotation: React.FC<EnhancedCanvasAnnotationProps> = ({
             {/* Overlay layer for brush preview */}
             <canvas
               ref={overlayCanvasRef}
-              className="absolute inset-0 w-full h-full pointer-events-none"
-              style={{ zIndex: 3 }}
+              className="absolute inset-0 pointer-events-none"
+              style={{ 
+                zIndex: 3,
+                width: '100%',
+                height: '100%',
+                display: 'block'
+              }}
             />
           </div>
 
