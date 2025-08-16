@@ -168,7 +168,7 @@ const EnhancedCanvasAnnotation: React.FC<EnhancedCanvasAnnotationProps> = ({
   const detectGesture = useCallback((points: Point[]): 'zigzag' | 'circle' | 'square' | 'none' => {
     if (points.length < 10) return 'none';
     
-    // ZigZag detection for medium relevance
+    // ZigZag detection for LOW relevance (blue)
     let directionChanges = 0;
     let previousDirection: 'up' | 'down' | null = null;
     
@@ -189,7 +189,7 @@ const EnhancedCanvasAnnotation: React.FC<EnhancedCanvasAnnotationProps> = ({
       return 'zigzag';
     }
     
-    // Circle detection for high relevance
+    // Circle detection for HIGH relevance (red)
     const minX = Math.min(...points.map(p => p.x));
     const maxX = Math.max(...points.map(p => p.x));
     const minY = Math.min(...points.map(p => p.y));
@@ -211,7 +211,7 @@ const EnhancedCanvasAnnotation: React.FC<EnhancedCanvasAnnotationProps> = ({
       return 'circle';
     }
     
-    // Square detection for low relevance
+    // Square detection for MEDIUM relevance (orange)
     if (aspectRatio >= 0.7 && closureRatio < 0.3 && points.length >= 20) {
       navigator.vibrate?.(200);
       return 'square';
@@ -366,9 +366,9 @@ const EnhancedCanvasAnnotation: React.FC<EnhancedCanvasAnnotationProps> = ({
       if (gesture !== 'none') {
         let newMode: 'medium' | 'high' | 'low' = 'medium';
         switch (gesture) {
-          case 'zigzag': newMode = 'medium'; break;
-          case 'circle': newMode = 'high'; break;
-          case 'square': newMode = 'low'; break;
+          case 'zigzag': newMode = 'low'; break;    // Zigzag = Low/Blue
+          case 'circle': newMode = 'high'; break;   // Circle = High/Red
+          case 'square': newMode = 'medium'; break; // Square = Medium/Orange
         }
         
         if (newMode !== magicToolMode) {
@@ -592,7 +592,7 @@ const EnhancedCanvasAnnotation: React.FC<EnhancedCanvasAnnotationProps> = ({
               </Badge>
             </div>
             <div className="text-xs text-muted-foreground mt-1">
-              ⚡ Zigzag: Medium • ⭕ Circle: High • ⬜ Square: Low
+              ⚡ Zigzag: Low • ⭕ Circle: High • ⬜ Square: Medium
             </div>
           </div>
         )}
@@ -655,16 +655,12 @@ const EnhancedCanvasAnnotation: React.FC<EnhancedCanvasAnnotationProps> = ({
                 top: `${commentPosition.y + 20}px`,
               }}
             >
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <MessageSquare className="w-4 h-4 text-primary" />
-                  <span className="text-sm font-medium">Add Comment</span>
-                </div>
+              <div className="space-y-2">
                 <Input
                   value={commentText}
                   onChange={(e) => setCommentText(e.target.value)}
-                  placeholder="Describe this annotation..."
-                  className="text-sm"
+                  placeholder="Add comment (Enter to save, Esc to skip)"
+                  className="text-sm border-none bg-transparent"
                   autoFocus
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
@@ -677,23 +673,6 @@ const EnhancedCanvasAnnotation: React.FC<EnhancedCanvasAnnotationProps> = ({
                     }
                   }}
                 />
-                <div className="flex gap-2">
-                  <Button size="sm" onClick={handleCommentSubmit}>
-                    <Edit3 className="w-3 h-3 mr-1" />
-                    Save
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    onClick={() => {
-                      setShowCommentInput(false);
-                      setActiveAnnotationId(null);
-                      setCommentText('');
-                    }}
-                  >
-                    Skip
-                  </Button>
-                </div>
               </div>
             </div>
           )}

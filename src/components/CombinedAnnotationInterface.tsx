@@ -36,8 +36,24 @@ const CombinedAnnotationInterface: React.FC<CombinedAnnotationInterfaceProps> = 
     }
   };
 
-  // Combine both annotation types for total count
+  // Combine both annotation types for total count and convert canvas to text format
   const totalAnnotations = canvasAnnotations.length + textAnnotations.length;
+  
+  // Convert canvas annotations to text annotations for the refined prompt
+  const convertedCanvasAnnotations: Annotation[] = canvasAnnotations.map(canvasAnn => ({
+    id: canvasAnn.id,
+    text: `Canvas annotation (${canvasAnn.type})`, // Since we don't have actual text selection from canvas
+    relevanceLevel: canvasAnn.type,
+    comment: canvasAnn.comment || '',
+    timestamp: canvasAnn.timestamp,
+    startIndex: 0,
+    endIndex: 0,
+    startOffset: 0,
+    endOffset: 0
+  }));
+  
+  // Combine all annotations for the refined prompt
+  const allAnnotations = [...textAnnotations, ...convertedCanvasAnnotations];
 
   return (
     <div className="space-y-8">
@@ -130,17 +146,7 @@ const CombinedAnnotationInterface: React.FC<CombinedAnnotationInterfaceProps> = 
           <PromptRefinement
             originalPrompt="Please analyze this AI response and improve it based on my feedback:"
             originalResponse={content}
-            annotations={[
-              ...canvasAnnotations.map(a => ({
-                id: a.id,
-                text: `Canvas ${a.type} annotation`,
-                relevanceLevel: a.type,
-                comment: `Canvas drawing with ${Math.round(a.pressure * 100)}% pressure`,
-                startIndex: 0,
-                endIndex: 50
-              })),
-              ...textAnnotations
-            ]}
+            annotations={allAnnotations}
           />
         </div>
       )}
