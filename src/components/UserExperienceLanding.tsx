@@ -16,7 +16,8 @@ import {
   Award,
   Rocket,
   Star,
-  ChevronDown
+  ChevronDown,
+  Type
 } from 'lucide-react';
 
 gsap.registerPlugin(ScrollTrigger);
