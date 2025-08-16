@@ -3,6 +3,7 @@ import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import MagicPencilExperience from './MagicPencilExperience';
 import { 
   Wand2, 
   Sparkles, 
@@ -157,7 +158,8 @@ const UserExperienceLanding: React.FC<UserExperienceLandingProps> = ({ onStartAn
         </div>
       </section>
 
-      {/* Redundant blocks removed */}
+      {/* Interactive Magic Pencil experience (restored) */}
+      <MagicPencilExperience onStartAnnotating={onStartAnnotating} />
     </div>
   );
 };
