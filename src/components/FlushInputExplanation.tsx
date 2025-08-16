@@ -59,7 +59,7 @@ const FlushInputExplanation: React.FC = () => {
               <div className="flex items-start gap-3">
                 <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-xs font-medium text-primary">2</div>
                 <div className="text-sm">
-                  <strong>AI Response:</strong> Get initial AI-generated content
+                  <strong>AI Response:</strong> Connect to AI providers (ChatGPT, Ollama, etc.) for initial content
                 </div>
               </div>
               <div className="flex items-start gap-3">
@@ -84,25 +84,25 @@ const FlushInputExplanation: React.FC = () => {
             <Upload className="w-5 h-5" />
             Planned Input Methods
           </h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div className="text-center p-3 rounded-lg bg-muted/30">
-              <Bot className="w-6 h-6 mx-auto mb-2 text-primary" />
+          <div className="flex flex-wrap justify-center gap-2">
+            <div className="text-center p-2 rounded-lg bg-muted/30 flex-1 min-w-[80px] max-w-[120px]">
+              <Bot className="w-5 h-5 mx-auto mb-1 text-primary" />
               <div className="text-xs font-medium">AI Integration</div>
             </div>
-            <div className="text-center p-3 rounded-lg bg-muted/30">
-              <FileText className="w-6 h-6 mx-auto mb-2 text-primary" />
+            <div className="text-center p-2 rounded-lg bg-muted/30 flex-1 min-w-[80px] max-w-[120px]">
+              <FileText className="w-5 h-5 mx-auto mb-1 text-primary" />
               <div className="text-xs font-medium">Text Input</div>
             </div>
-            <div className="text-center p-3 rounded-lg bg-muted/30">
-              <Upload className="w-6 h-6 mx-auto mb-2 text-primary" />
+            <div className="text-center p-2 rounded-lg bg-muted/30 flex-1 min-w-[80px] max-w-[120px]">
+              <Upload className="w-5 h-5 mx-auto mb-1 text-primary" />
               <div className="text-xs font-medium">File Upload</div>
             </div>
-            <div className="text-center p-3 rounded-lg bg-muted/30">
-              <Mic className="w-6 h-6 mx-auto mb-2 text-primary" />
-              <div className="text-xs font-medium">Voice Input</div>
+            <div className="text-center p-2 rounded-lg bg-muted/30 flex-1 min-w-[80px] max-w-[120px]">
+              <Mic className="w-5 h-5 mx-auto mb-1 text-primary" />
+              <div className="text-xs font-medium">Voice to Text</div>
             </div>
-            <div className="text-center p-3 rounded-lg bg-muted/30">
-              <Camera className="w-6 h-6 mx-auto mb-2 text-primary" />
+            <div className="text-center p-2 rounded-lg bg-muted/30 flex-1 min-w-[80px] max-w-[120px]">
+              <Camera className="w-5 h-5 mx-auto mb-1 text-primary" />
               <div className="text-xs font-medium">Image OCR</div>
             </div>
           </div>

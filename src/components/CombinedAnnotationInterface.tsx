@@ -85,13 +85,6 @@ const CombinedAnnotationInterface: React.FC<CombinedAnnotationInterfaceProps> = 
               text={content}
               onAnnotationsChange={handleCanvasAnnotationsChange}
             />
-            {/* Debug option for canvas */}
-            <div className="mt-4 p-4 bg-muted/30 rounded-lg">
-              <p className="text-sm text-muted-foreground">
-                💡 <strong>Developer Tip:</strong> Switch to the <code>InteractiveCanvas</code> component 
-                to access advanced debug tools and gesture analysis features.
-              </p>
-            </div>
           </TabsContent>
           
           <TabsContent value="text" className="mt-6">
@@ -107,13 +100,13 @@ const CombinedAnnotationInterface: React.FC<CombinedAnnotationInterfaceProps> = 
       </Card>
 
       {/* Analytics Dashboard */}
-      {totalAnnotations > 0 && (
-        <Card className="p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <BarChart3 className="w-5 h-5" />
-            <h3 className="text-lg font-semibold text-foreground">Combined Analytics</h3>
-          </div>
-          
+      <Card className="p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <BarChart3 className="w-5 h-5" />
+          <h3 className="text-lg font-semibold text-foreground">Flush Analytics</h3>
+        </div>
+        
+        {totalAnnotations > 0 ? (
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
             <div className="text-center">
               <div className="text-3xl font-bold text-primary">{totalAnnotations}</div>
@@ -144,8 +137,40 @@ const CombinedAnnotationInterface: React.FC<CombinedAnnotationInterfaceProps> = 
               <div className="text-sm text-muted-foreground">Neutral</div>
             </div>
           </div>
-        </Card>
-      )}
+        ) : (
+          <div className="space-y-4">
+            <p className="text-muted-foreground text-center">
+              Start annotating to see your analytics data. Flush measures:
+            </p>
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+              <div className="bg-muted/30 rounded-lg p-3">
+                <div className="font-medium text-foreground">Relevance Improvement</div>
+                <div className="text-muted-foreground">Expert ratings before vs after Flush</div>
+              </div>
+              <div className="bg-muted/30 rounded-lg p-3">
+                <div className="font-medium text-foreground">Noise Reduction</div>
+                <div className="text-muted-foreground">% of irrelevant content removed</div>
+              </div>
+              <div className="bg-muted/30 rounded-lg p-3">
+                <div className="font-medium text-foreground">Task Completion Rate</div>
+                <div className="text-muted-foreground">Satisfactory answers on first try</div>
+              </div>
+              <div className="bg-muted/30 rounded-lg p-3">
+                <div className="font-medium text-foreground">Iteration Reduction</div>
+                <div className="text-muted-foreground">Fewer cycles to get good results</div>
+              </div>
+              <div className="bg-muted/30 rounded-lg p-3">
+                <div className="font-medium text-foreground">Time-to-Output</div>
+                <div className="text-muted-foreground">Faster path to acceptable answers</div>
+              </div>
+              <div className="bg-muted/30 rounded-lg p-3">
+                <div className="font-medium text-foreground">User Satisfaction</div>
+                <div className="text-muted-foreground">Clarity and usefulness scores</div>
+              </div>
+            </div>
+          </div>
+        )}
+      </Card>
 
       {/* Prompt Refinement */}
       {totalAnnotations > 0 && (

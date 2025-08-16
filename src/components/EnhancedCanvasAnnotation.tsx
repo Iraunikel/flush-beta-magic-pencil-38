@@ -5,9 +5,10 @@ import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { 
   Heart, ThumbsUp, ThumbsDown, Minus, Eraser, Hand, RotateCcw, 
-  TrendingUp, Palette, MessageSquare, Sparkles, Zap, Trash2, Edit3 
+  TrendingUp, Palette, MessageSquare, Sparkles, Zap, Trash2, Edit3, Bug 
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import DebugConsole from './DebugConsole';
 
 export type DrawingTool = 'magic' | 'high' | 'medium' | 'low' | 'neutral' | 'eraser' | 'pan';
 
@@ -70,8 +71,34 @@ const EnhancedCanvasAnnotation: React.FC<EnhancedCanvasAnnotationProps> = ({
   const [brushPreview, setBrushPreview] = useState({ x: 0, y: 0, size: 0, visible: false });
   const [undoStack, setUndoStack] = useState<CanvasAnnotation[][]>([]);
   const [redoStack, setRedoStack] = useState<CanvasAnnotation[][]>([]);
+  const [debugEnabled, setDebugEnabled] = useState(true);
+  const [showDebug, setShowDebug] = useState(false);
+  const [debugLogs, setDebugLogs] = useState<string[]>([]);
+  const [debugSnapshot, setDebugSnapshot] = useState({
+    drawing: false,
+    tool: activeTool,
+    pressure: 0.5,
+    points: 0,
+    gesture: '',
+    corners: 0,
+    aspect: 0,
+    closure: 0,
+    timestamp: Date.now()
+  });
   
   const { toast } = useToast();
+
+  // Debug logging function
+  const addDebugLog = useCallback((message: string) => {
+    if (!debugEnabled) return;
+    const timestamp = new Date().toLocaleTimeString();
+    setDebugLogs(prev => [...prev.slice(-19), `${timestamp}: ${message}`]);
+  }, [debugEnabled]);
+
+  // Update debug snapshot
+  const updateDebugSnapshot = useCallback((updates: any) => {
+    setDebugSnapshot(prev => ({ ...prev, ...updates }));
+  }, []);
 
   // Initialize triple-layer canvas system
   useEffect(() => {
@@ -166,7 +193,10 @@ const EnhancedCanvasAnnotation: React.FC<EnhancedCanvasAnnotationProps> = ({
 
   // Enhanced gesture recognition with tactile feedback
   const detectGesture = useCallback((points: Point[]): 'zigzag' | 'circle' | 'square' | 'none' => {
-    if (points.length < 10) return 'none';
+    if (points.length < 10) {
+      addDebugLog(`Gesture: Insufficient points (${points.length}/10)`);
+      return 'none';
+    }
     
     // ZigZag detection for LOW relevance (blue)
     let directionChanges = 0;
@@ -186,6 +216,8 @@ const EnhancedCanvasAnnotation: React.FC<EnhancedCanvasAnnotationProps> = ({
     if (directionChanges >= 3) {
       // Haptic feedback simulation
       navigator.vibrate?.(100);
+      addDebugLog(`Zigzag detected: ${directionChanges} direction changes`);
+      updateDebugSnapshot({ gesture: 'zigzag', corners: directionChanges });
       return 'zigzag';
     }
     
@@ -208,34 +240,57 @@ const EnhancedCanvasAnnotation: React.FC<EnhancedCanvasAnnotationProps> = ({
     
     if (aspectRatio >= 0.6 && closureRatio < 0.5 && points.length >= 15) {
       navigator.vibrate?.(150);
+      addDebugLog(`Circle detected: aspect ${aspectRatio.toFixed(2)}, closure ${closureRatio.toFixed(2)}`);
+      updateDebugSnapshot({ gesture: 'circle', aspect: aspectRatio, closure: closureRatio });
       return 'circle';
     }
     
     // Square detection for MEDIUM relevance (orange) - improved detection
     let corners = 0;
-    const threshold = Math.min(width, height) * 0.1;
+    let totalTurns = 0;
     
-    for (let i = 5; i < points.length - 5; i++) {
-      const prev = points[i - 5];
-      const curr = points[i];
-      const next = points[i + 5];
+    // Check for right-angle turns to distinguish squares from circles
+    for (let i = 4; i < points.length - 4; i++) {
+      const p1 = points[i - 4];
+      const p2 = points[i];
+      const p3 = points[i + 4];
       
-      const angle1 = Math.atan2(curr.y - prev.y, curr.x - prev.x);
-      const angle2 = Math.atan2(next.y - curr.y, next.x - curr.x);
-      let angleDiff = Math.abs(angle2 - angle1);
+      const v1 = { x: p2.x - p1.x, y: p2.y - p1.y };
+      const v2 = { x: p3.x - p2.x, y: p3.y - p2.y };
       
-      if (angleDiff > Math.PI) angleDiff = 2 * Math.PI - angleDiff;
+      const dot = v1.x * v2.x + v1.y * v2.y;
+      const mag1 = Math.sqrt(v1.x * v1.x + v1.y * v1.y);
+      const mag2 = Math.sqrt(v2.x * v2.x + v2.y * v2.y);
       
-      if (angleDiff > Math.PI / 3) corners++; // > 60 degrees
+      if (mag1 > 5 && mag2 > 5) {
+        const cosAngle = dot / (mag1 * mag2);
+        const angle = Math.acos(Math.max(-1, Math.min(1, cosAngle)));
+        const angleDegrees = angle * 180 / Math.PI;
+        
+        totalTurns += Math.abs(angleDegrees);
+        
+        // Look for sharp corners (close to 90 degrees)
+        if (angleDegrees > 60 && angleDegrees < 120) {
+          corners++;
+        }
+      }
     }
     
-    if (aspectRatio >= 0.7 && corners >= 3 && closureRatio < 0.3) {
+    // Check if shape has straight edges (lower total turn variation)
+    const avgTurn = totalTurns / (points.length - 8);
+    const hasSharpCorners = corners >= 2;
+    const hasGoodAspect = aspectRatio >= 0.6;
+    const isClosed = closureRatio < 0.4;
+    
+    if (hasGoodAspect && hasSharpCorners && isClosed && avgTurn < 90) {
       navigator.vibrate?.(200);
+      addDebugLog(`Square detected: corners ${corners}, aspect ${aspectRatio.toFixed(2)}, avgTurn ${avgTurn.toFixed(1)}`);
+      updateDebugSnapshot({ gesture: 'square', corners, aspect: aspectRatio, closure: closureRatio });
       return 'square';
     }
     
     return 'none';
-  }, []);
+  }, [addDebugLog, updateDebugSnapshot]);
 
   const getDrawingColor = (tool: DrawingTool, pressure: number = 1, magicMode?: string): string => {
     const intensity = Math.max(0.2, Math.min(1, pressure));
@@ -301,8 +356,6 @@ const EnhancedCanvasAnnotation: React.FC<EnhancedCanvasAnnotationProps> = ({
     const ctx = annotationContextRef.current;
     if (!canvas || !ctx) return;
 
-    setIsDrawing(true);
-    
     const rect = canvas.getBoundingClientRect();
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
@@ -310,6 +363,10 @@ const EnhancedCanvasAnnotation: React.FC<EnhancedCanvasAnnotationProps> = ({
     const x = (e.clientX - rect.left) * scaleX;
     const y = (e.clientY - rect.top) * scaleY;
     const pressure = e.pressure || 0.5;
+
+    setIsDrawing(true);
+    addDebugLog(`Start drawing: tool=${activeTool}, pressure=${pressure.toFixed(2)}`);
+    updateDebugSnapshot({ drawing: true, tool: activeTool, pressure, points: 0 });
     
     setLastPos({ x, y });
     setCurrentPressure(pressure);
@@ -375,7 +432,11 @@ const EnhancedCanvasAnnotation: React.FC<EnhancedCanvasAnnotationProps> = ({
     ctx.stroke();
     
     // Add point to gesture tracking
-    setGesturePoints(prev => [...prev, { x, y, time: Date.now(), pressure }]);
+    setGesturePoints(prev => {
+      const newPoints = [...prev, { x, y, time: Date.now(), pressure }];
+      updateDebugSnapshot({ points: newPoints.length });
+      return newPoints;
+    });
     
     // Magic Pencil gesture recognition
     if (activeTool === 'magic' && gesturePoints.length > 5) {
@@ -412,6 +473,8 @@ const EnhancedCanvasAnnotation: React.FC<EnhancedCanvasAnnotationProps> = ({
     if (!isDrawing) return;
     
     setIsDrawing(false);
+    addDebugLog(`Stop drawing: ${gesturePoints.length} points captured`);
+    updateDebugSnapshot({ drawing: false });
     
     const canvas = annotationCanvasRef.current;
     if (!canvas) return;
@@ -697,14 +760,16 @@ const EnhancedCanvasAnnotation: React.FC<EnhancedCanvasAnnotationProps> = ({
           {/* Brush Preview */}
           {brushPreview.visible && !isDrawing && (
             <div
-              className="brush-preview"
+              className="absolute pointer-events-none rounded-full border-2 border-current opacity-60"
               style={{
-                left: `${brushPreview.x}px`,
-                top: `${brushPreview.y}px`,
-                width: `${brushPreview.size}px`,
-                height: `${brushPreview.size}px`,
+                position: 'absolute',
+                left: `${(brushPreview.x / 1024) * 100}%`,
+                top: `${(brushPreview.y / 768) * 100}%`,
+                width: `${Math.max(8, brushPreview.size / 2)}px`,
+                height: `${Math.max(8, brushPreview.size / 2)}px`,
                 transform: 'translate(-50%, -50%)',
-                backgroundColor: getDrawingColor(activeTool, currentPressure, magicToolMode),
+                color: getDrawingColor(activeTool, currentPressure, magicToolMode),
+                zIndex: 10,
               }}
             />
           )}
@@ -734,6 +799,17 @@ const EnhancedCanvasAnnotation: React.FC<EnhancedCanvasAnnotationProps> = ({
             })}
           </div>
         </Card>
+      )}
+
+      {/* Debug Console */}
+      {debugEnabled && (
+        <DebugConsole 
+          isOpen={showDebug}
+          onToggle={() => setShowDebug(!showDebug)}
+          logs={debugLogs}
+          snapshot={debugSnapshot}
+          onClear={() => setDebugLogs([])}
+        />
       )}
     </div>
   );
