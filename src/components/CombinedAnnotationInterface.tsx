@@ -3,12 +3,12 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { PenTool, Type, BarChart3, Sparkles, Wand2 } from 'lucide-react';
+import { PenTool, Type, BarChart3, Sparkles } from 'lucide-react';
 import EnhancedCanvasAnnotation, { type CanvasAnnotation } from './EnhancedCanvasAnnotation';
 import AnnotationInterface, { type Annotation } from './AnnotationInterface';
 import PromptRefinement from './PromptRefinement';
 import AnalyticsDashboard from './AnalyticsDashboard';
-import UserExperienceLanding from './UserExperienceLanding';
+import MagicPencilExperience from './MagicPencilExperience';
 
 interface CombinedAnnotationInterfaceProps {
   content: string;
@@ -77,8 +77,8 @@ const CombinedAnnotationInterface: React.FC<CombinedAnnotationInterfaceProps> = 
         <Tabs value={activeMode} onValueChange={(value) => setActiveMode(value as 'ux' | 'canvas' | 'text')}>
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="ux" className="flex items-center gap-2">
-              <Wand2 className="w-4 h-4" />
-              User Experience
+              <Sparkles className="w-4 h-4" />
+              Magic Pencil
             </TabsTrigger>
             <TabsTrigger value="canvas" className="flex items-center gap-2">
               <PenTool className="w-4 h-4" />
@@ -92,7 +92,7 @@ const CombinedAnnotationInterface: React.FC<CombinedAnnotationInterfaceProps> = 
           
           <TabsContent value="ux" className="mt-6 p-0">
             <div className="-mx-6 -mb-6">
-              <UserExperienceLanding onStartAnnotating={handleStartAnnotating} />
+              <MagicPencilExperience onStartAnnotating={handleStartAnnotating} />
             </div>
           </TabsContent>
           
