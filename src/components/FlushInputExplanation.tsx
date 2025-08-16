@@ -14,7 +14,7 @@ import {
 
 const FlushInputExplanation: React.FC = () => {
   return (
-    <Card className="p-6 border-primary/20 bg-gradient-to-br from-primary/5 to-accent/5">
+    <Card data-section="how-it-works" className="p-6 border-primary/20 bg-gradient-to-br from-primary/5 to-accent/5">
       <div className="space-y-6">
         <div className="text-center space-y-2">
           <div className="flex items-center justify-center gap-2">
@@ -43,9 +43,10 @@ const FlushInputExplanation: React.FC = () => {
             </div>
           </div>
 
-          {/* Full App Flow */}
+          {/* Full App Flow */
+          }
           <div className="space-y-4">
-            <div className="flex items-center gap-2 text-accent">
+            <div className="flex items-center gap-2 text-foreground">
               <Bot className="w-5 h-5" />
               <h3 className="font-semibold">Full App Flow</h3>
             </div>
@@ -53,7 +54,7 @@ const FlushInputExplanation: React.FC = () => {
               <div className="flex items-start gap-3">
                 <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-xs font-medium text-primary">1</div>
                 <div className="text-sm">
-                  <strong>Input:</strong> Upload documents, paste text, or speak your prompt
+                  <strong>Input:</strong> Upload documents, texts, or simply connect with your AI engine
                 </div>
               </div>
               <div className="flex items-start gap-3">
@@ -65,7 +66,7 @@ const FlushInputExplanation: React.FC = () => {
               <div className="flex items-start gap-3">
                 <div className="w-6 h-6 rounded-full bg-accent/20 flex items-center justify-center text-xs font-medium text-accent">3</div>
                 <div className="text-sm">
-                  <strong>Magic Pencil:</strong> Annotate relevance levels with gestures
+                  Use intuitive gestures to make editing an effortless flow:
                 </div>
               </div>
               <div className="flex items-start gap-3">
