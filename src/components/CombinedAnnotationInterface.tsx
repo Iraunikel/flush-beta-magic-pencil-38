@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PenTool, Type, BarChart3, Sparkles } from 'lucide-react';
-import InteractiveCanvas, { type CanvasAnnotation } from './InteractiveCanvas';
+import EnhancedCanvasAnnotation, { type CanvasAnnotation } from './EnhancedCanvasAnnotation';
 import AnnotationInterface, { type Annotation } from './AnnotationInterface';
 import PromptRefinement from './PromptRefinement';
 
@@ -65,7 +65,7 @@ const CombinedAnnotationInterface: React.FC<CombinedAnnotationInterfaceProps> = 
           </TabsList>
           
           <TabsContent value="canvas" className="mt-6">
-            <InteractiveCanvas
+            <EnhancedCanvasAnnotation
               text={content}
               onAnnotationsChange={handleCanvasAnnotationsChange}
             />
