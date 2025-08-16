@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { gsap } from 'gsap';
-import * as anime from 'animejs';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -93,17 +92,31 @@ const MagicPencilDemo: React.FC<MagicPencilDemoProps> = ({ onComplete }) => {
   };
 
   const triggerCelebration = () => {
-    // Anime.js particle celebration
-    anime({
-      targets: '.celebration-particle',
-      translateY: [0, -100],
-      translateX: () => anime.random(-100, 100),
-      scale: [0, 1, 0],
-      opacity: [0, 1, 0],
-      duration: 2000,
-      delay: anime.stagger(100),
-      easing: 'easeOutCubic'
-    });
+    // GSAP particle celebration
+    gsap.fromTo('.celebration-particle', 
+      { 
+        scale: 0,
+        opacity: 0,
+        x: 0,
+        y: 0
+      },
+      { 
+        scale: 1,
+        opacity: 1,
+        x: () => gsap.utils.random(-100, 100),
+        y: -100,
+        duration: 2,
+        stagger: 0.1,
+        ease: "power2.out",
+        onComplete: () => {
+          gsap.to('.celebration-particle', {
+            scale: 0,
+            opacity: 0,
+            duration: 0.5
+          });
+        }
+      }
+    );
 
     // GSAP text celebration
     gsap.fromTo('.focus-message', 
@@ -136,13 +149,11 @@ const MagicPencilDemo: React.FC<MagicPencilDemoProps> = ({ onComplete }) => {
       // Clear selection
       selection.removeAllRanges();
       
-      // Anime.js stroke effect
-      anime({
-        targets: `.annotation-${newAnnotation.id}`,
-        scale: [0.8, 1],
-        duration: 300,
-        easing: 'easeOutCubic'
-      });
+      // GSAP stroke effect
+      gsap.fromTo(`.annotation-${newAnnotation.id}`, 
+        { scale: 0.8, opacity: 0.5 },
+        { scale: 1, opacity: 1, duration: 0.3, ease: "power2.out" }
+      );
     }
   };
 
