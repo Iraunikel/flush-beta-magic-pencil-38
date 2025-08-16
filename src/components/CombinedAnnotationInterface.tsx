@@ -6,8 +6,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PenTool, Type, BarChart3, Sparkles } from 'lucide-react';
 import EnhancedCanvasAnnotation, { type CanvasAnnotation } from './EnhancedCanvasAnnotation';
 import AnnotationInterface, { type Annotation } from './AnnotationInterface';
-import PromptRefinement from './PromptRefinement';
-import AnalyticsDashboard from './AnalyticsDashboard';
+import UnifiedPromptRefinement from './UnifiedPromptRefinement';
+import UnifiedAnalyticsDashboard, { type UnifiedAnnotation } from './UnifiedAnalyticsDashboard';
 import MagicPencilExperience from './MagicPencilExperience';
 
 interface CombinedAnnotationInterfaceProps {
@@ -21,7 +21,9 @@ const CombinedAnnotationInterface: React.FC<CombinedAnnotationInterfaceProps> = 
 }) => {
   const [canvasAnnotations, setCanvasAnnotations] = useState<CanvasAnnotation[]>([]);
   const [textAnnotations, setTextAnnotations] = useState<Annotation[]>([]);
+  const [magicPencilAnnotations, setMagicPencilAnnotations] = useState<any[]>([]);
   const [activeMode, setActiveMode] = useState<'ux' | 'canvas' | 'text'>('ux');
+  const [sessionStartTime] = useState(Date.now());
 
   const handleCanvasAnnotationsChange = (newAnnotations: CanvasAnnotation[]) => {
     setCanvasAnnotations(newAnnotations);
@@ -38,24 +40,47 @@ const CombinedAnnotationInterface: React.FC<CombinedAnnotationInterfaceProps> = 
     }
   };
 
-  // Combine both annotation types for total count and convert canvas to text format
-  const totalAnnotations = canvasAnnotations.length + textAnnotations.length;
+  // Convert all annotation types to unified format
+  const unifiedAnnotations: UnifiedAnnotation[] = [
+    // Magic Pencil annotations
+    ...magicPencilAnnotations.map(annotation => ({
+      id: annotation.id,
+      type: 'magic-pencil' as const,
+      relevanceLevel: annotation.type || 'medium',
+      text: annotation.text || '',
+      comment: annotation.comment,
+      timestamp: annotation.timestamp,
+      startIndex: annotation.start,
+      endIndex: annotation.end
+    })),
+    // Canvas annotations
+    ...canvasAnnotations.map(canvasAnn => ({
+      id: canvasAnn.id,
+      type: 'canvas' as const,
+      relevanceLevel: (canvasAnn.type === 'high' ? 'high' : 
+                      canvasAnn.type === 'medium' ? 'medium' :
+                      canvasAnn.type === 'low' ? 'low' : 'neutral') as 'high' | 'medium' | 'low' | 'neutral' | 'hot' | 'flush',
+      text: `Canvas annotation (${canvasAnn.type})`,
+      comment: canvasAnn.comment || '',
+      timestamp: canvasAnn.timestamp,
+      bounds: canvasAnn.bounds,
+      paths: canvasAnn.paths,
+      pressure: canvasAnn.pressure
+    })),
+    // Text annotations
+    ...textAnnotations.map(textAnn => ({
+      id: textAnn.id,
+      type: 'text' as const,
+      relevanceLevel: textAnn.relevanceLevel as 'high' | 'medium' | 'low' | 'neutral' | 'hot' | 'flush',
+      text: textAnn.text,
+      comment: textAnn.comment,
+      timestamp: Date.now(),
+      startIndex: textAnn.startIndex,
+      endIndex: textAnn.endIndex
+    }))
+  ];
   
-  // Convert canvas annotations to text annotations for the refined prompt
-  const convertedCanvasAnnotations: Annotation[] = canvasAnnotations.map(canvasAnn => ({
-    id: canvasAnn.id,
-    text: `Canvas annotation (${canvasAnn.type})`, // Since we don't have actual text selection from canvas
-    relevanceLevel: canvasAnn.type,
-    comment: canvasAnn.comment || '',
-    timestamp: canvasAnn.timestamp,
-    startIndex: 0,
-    endIndex: 0,
-    startOffset: 0,
-    endOffset: 0
-  }));
-  
-  // Combine all annotations for the refined prompt
-  const allAnnotations = [...textAnnotations, ...convertedCanvasAnnotations];
+  const totalAnnotations = unifiedAnnotations.length;
 
   const handleStartAnnotating = () => {
     setActiveMode('canvas');
@@ -92,7 +117,7 @@ const CombinedAnnotationInterface: React.FC<CombinedAnnotationInterfaceProps> = 
           
           <TabsContent value="ux" className="mt-6 p-0">
             <div className="-mx-6 -mb-6">
-              <MagicPencilExperience onStartAnnotating={handleStartAnnotating} />
+            <MagicPencilExperience onStartAnnotating={handleStartAnnotating} />
             </div>
           </TabsContent>
           
@@ -115,27 +140,28 @@ const CombinedAnnotationInterface: React.FC<CombinedAnnotationInterfaceProps> = 
         </Tabs>
       </Card>
 
-      {/* Analytics Dashboard */}
+      {/* Unified Analytics Dashboard */}
       <Card className="p-6">
         <div className="flex items-center gap-2 mb-4">
           <BarChart3 className="w-5 h-5" />
-          <h3 className="text-lg font-semibold text-foreground">Flush Analytics</h3>
+          <h3 className="text-lg font-semibold text-foreground">Unified Flush Analytics</h3>
         </div>
         
-        <AnalyticsDashboard
-          annotations={allAnnotations}
+        <UnifiedAnalyticsDashboard
+          annotations={unifiedAnnotations}
           originalPrompt="Please analyze this AI response and improve it based on my feedback:"
           originalResponse={content}
+          sessionStartTime={sessionStartTime}
         />
       </Card>
 
-      {/* Prompt Refinement */}
+      {/* Unified Prompt Refinement */}
       {totalAnnotations > 0 && (
         <div id="prompt-refinement">
-          <PromptRefinement
+          <UnifiedPromptRefinement
             originalPrompt="Please analyze this AI response and improve it based on my feedback:"
             originalResponse={content}
-            annotations={allAnnotations}
+            annotations={unifiedAnnotations}
           />
         </div>
       )}
