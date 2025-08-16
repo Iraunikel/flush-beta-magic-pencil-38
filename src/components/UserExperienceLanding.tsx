@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { gsap } from 'gsap';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import MagicPencilExperience from './MagicPencilExperience';
 import { 
   Wand2, 
   Sparkles, 
@@ -140,6 +141,9 @@ const UserExperienceLanding: React.FC<UserExperienceLandingProps> = ({ onStartAn
           <ChevronDown className="w-6 h-6 text-muted-foreground" />
         </div>
       </section>
+
+      {/* Magic Pencil Interactive Experience */}
+      <MagicPencilExperience onStartAnnotating={onStartAnnotating} />
     </div>
   );
 };
