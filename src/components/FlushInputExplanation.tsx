@@ -47,13 +47,13 @@ const FlushInputExplanation: React.FC = () => {
           <div className="space-y-4">
             <div className="flex items-center gap-2 text-accent">
               <Bot className="w-5 h-5" />
-              <h3 className="font-semibold">Full App Flow</h3>
+              <h3 className="font-semibold text-foreground">Full App Flow</h3>
             </div>
             <div className="space-y-3">
               <div className="flex items-start gap-3">
                 <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-xs font-medium text-primary">1</div>
                 <div className="text-sm">
-                  <strong>Input:</strong> Upload documents, paste text, or speak your prompt
+                  <strong>Input:</strong> Upload documents, texts, or simply connect with your AI engine
                 </div>
               </div>
               <div className="flex items-start gap-3">
@@ -65,7 +65,7 @@ const FlushInputExplanation: React.FC = () => {
               <div className="flex items-start gap-3">
                 <div className="w-6 h-6 rounded-full bg-accent/20 flex items-center justify-center text-xs font-medium text-accent">3</div>
                 <div className="text-sm">
-                  <strong>Magic Pencil:</strong> Annotate relevance levels with gestures
+                  <strong>Use intuitive gestures to make editing an effortless flow:</strong> Annotate relevance levels with gestures
                 </div>
               </div>
               <div className="flex items-start gap-3">

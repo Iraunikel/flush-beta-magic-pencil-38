@@ -143,23 +143,17 @@ const UserExperienceLanding: React.FC<UserExperienceLandingProps> = ({ onStartAn
         <div className="relative z-10 text-center max-w-4xl mx-auto px-4">
           <Badge className="hero-badge mb-6 bg-primary/10 text-primary border-primary/20 text-sm px-4 py-2">
             <Award className="w-4 h-4 mr-2" />
-            Design Excellence Award Winner
+            Built for MetaTrap Hackathon 2025
           </Badge>
           
           <h1 className="hero-title text-6xl md:text-8xl font-bold text-foreground mb-6">
             <span className="bg-gradient-text bg-clip-text text-transparent">
-              Magic
-            </span>
-            <br />
-            <span className="text-4xl md:text-5xl text-muted-foreground">
-              Pencil Experience
+              UVP
             </span>
           </h1>
           
           <p className="hero-subtitle text-xl md:text-2xl text-muted-foreground mb-8 max-w-2xl mx-auto leading-relaxed">
-            Transform AI responses with intuitive annotations. 
-            <br />
-            <span className="text-primary">Design meets intelligence.</span>
+            Intuitive and efficient AI editing for long, tedious edits
           </p>
           
           <div className="hero-cta flex flex-col sm:flex-row gap-4 justify-center items-center">
@@ -169,7 +163,7 @@ const UserExperienceLanding: React.FC<UserExperienceLandingProps> = ({ onStartAn
               className="group relative overflow-hidden bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-6 text-lg rounded-xl shadow-elegant hover:shadow-glow transition-all duration-300"
             >
               <Rocket className="w-5 h-5 mr-2 group-hover:rotate-12 transition-transform duration-300" />
-              Start Creating Magic
+              Try it yourself
               <div className="absolute inset-0 bg-gradient-to-r from-primary-glow/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
             </Button>
             

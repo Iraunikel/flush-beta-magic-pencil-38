@@ -19,7 +19,7 @@ const Index = () => {
       <div data-section="annotation" className="container mx-auto px-4 py-16 space-y-12">
         <div className="text-center space-y-4">
           <h2 className="text-3xl font-bold text-foreground">
-            Try It Yourself
+            How it works
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             Experience the full Magic Pencil interface with advanced features.
