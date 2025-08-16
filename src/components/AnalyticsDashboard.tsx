@@ -6,9 +6,9 @@ import { TrendingUp, TrendingDown, Target, Zap, Clock, CheckCircle, BarChart3 } 
 import type { Annotation } from './AnnotationInterface';
 
 interface AnalyticsDashboardProps {
-  annotations: Annotation[];
-  originalPrompt: string;
-  originalResponse: string;
+  annotations?: Annotation[];
+  originalPrompt?: string;
+  originalResponse?: string;
 }
 
 interface KPIMetric {
@@ -23,16 +23,18 @@ interface KPIMetric {
 }
 
 const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
-  annotations,
-  originalPrompt,
-  originalResponse
+  annotations = [],
+  originalPrompt = '',
+  originalResponse = ''
 }) => {
   const metrics = useMemo((): KPIMetric[] => {
-    const totalAnnotations = annotations.length;
-    const highRelevance = annotations.filter(a => a.relevanceLevel === 'high').length;
-    const lowRelevance = annotations.filter(a => a.relevanceLevel === 'low').length;
-    const mediumRelevance = annotations.filter(a => a.relevanceLevel === 'medium').length;
-    const neutralRelevance = annotations.filter(a => a.relevanceLevel === 'neutral').length;
+    // Ensure annotations is always an array
+    const safeAnnotations = annotations || [];
+    const totalAnnotations = safeAnnotations.length;
+    const highRelevance = safeAnnotations.filter(a => a.relevanceLevel === 'high').length;
+    const lowRelevance = safeAnnotations.filter(a => a.relevanceLevel === 'low').length;
+    const mediumRelevance = safeAnnotations.filter(a => a.relevanceLevel === 'medium').length;
+    const neutralRelevance = safeAnnotations.filter(a => a.relevanceLevel === 'neutral').length;
 
     // Calculate metrics
     const noiseReductionRatio = totalAnnotations > 0 
@@ -44,7 +46,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
       : 0;
 
     const annotationCoverage = originalResponse.length > 0
-      ? Math.round((annotations.reduce((sum, a) => sum + a.text.length, 0) / originalResponse.length) * 100)
+      ? Math.round((safeAnnotations.reduce((sum, a) => sum + a.text.length, 0) / originalResponse.length) * 100)
       : 0;
 
     const focusScore = totalAnnotations > 0
@@ -122,19 +124,20 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
   }, [annotations, originalResponse]);
 
   const getAnnotationBreakdown = () => {
-    const total = annotations.length;
+    const safeAnnotations = annotations || [];
+    const total = safeAnnotations.length;
     return {
-      high: { count: annotations.filter(a => a.relevanceLevel === 'high').length, color: 'annotation-high' },
-      medium: { count: annotations.filter(a => a.relevanceLevel === 'medium').length, color: 'annotation-medium' },
-      neutral: { count: annotations.filter(a => a.relevanceLevel === 'neutral').length, color: 'annotation-neutral' },
-      low: { count: annotations.filter(a => a.relevanceLevel === 'low').length, color: 'annotation-low' },
+      high: { count: safeAnnotations.filter(a => a.relevanceLevel === 'high').length, color: 'annotation-high' },
+      medium: { count: safeAnnotations.filter(a => a.relevanceLevel === 'medium').length, color: 'annotation-medium' },
+      neutral: { count: safeAnnotations.filter(a => a.relevanceLevel === 'neutral').length, color: 'annotation-neutral' },
+      low: { count: safeAnnotations.filter(a => a.relevanceLevel === 'low').length, color: 'annotation-low' },
       total
     };
   };
 
   const breakdown = getAnnotationBreakdown();
 
-  if (annotations.length === 0) {
+  if ((annotations || []).length === 0) {
     return (
       <div className="space-y-6">
         <Card className="p-8 text-center">
