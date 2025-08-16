@@ -7,6 +7,7 @@ import { PenTool, Type, BarChart3, Sparkles } from 'lucide-react';
 import EnhancedCanvasAnnotation, { type CanvasAnnotation } from './EnhancedCanvasAnnotation';
 import AnnotationInterface, { type Annotation } from './AnnotationInterface';
 import PromptRefinement from './PromptRefinement';
+import AnalyticsDashboard from './AnalyticsDashboard';
 
 interface CombinedAnnotationInterfaceProps {
   content: string;
@@ -106,70 +107,11 @@ const CombinedAnnotationInterface: React.FC<CombinedAnnotationInterfaceProps> = 
           <h3 className="text-lg font-semibold text-foreground">Flush Analytics</h3>
         </div>
         
-        {totalAnnotations > 0 ? (
-          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-            <div className="text-center">
-              <div className="text-3xl font-bold text-primary">{totalAnnotations}</div>
-              <div className="text-sm text-muted-foreground">Total</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-annotation-high">
-                {canvasAnnotations.filter(a => a.type === 'high').length + textAnnotations.filter(a => a.relevanceLevel === 'high').length}
-              </div>
-              <div className="text-sm text-muted-foreground">High</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-annotation-medium">
-                {canvasAnnotations.filter(a => a.type === 'medium').length + textAnnotations.filter(a => a.relevanceLevel === 'medium').length}
-              </div>
-              <div className="text-sm text-muted-foreground">Medium</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-annotation-low">
-                {canvasAnnotations.filter(a => a.type === 'low').length + textAnnotations.filter(a => a.relevanceLevel === 'low').length}
-              </div>
-              <div className="text-sm text-muted-foreground">Low</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-annotation-neutral">
-                {canvasAnnotations.filter(a => a.type === 'neutral').length + textAnnotations.filter(a => a.relevanceLevel === 'neutral').length}
-              </div>
-              <div className="text-sm text-muted-foreground">Neutral</div>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <p className="text-muted-foreground text-center">
-              Start annotating to see your analytics data. Flush measures:
-            </p>
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
-              <div className="bg-muted/30 rounded-lg p-3">
-                <div className="font-medium text-foreground">Relevance Improvement</div>
-                <div className="text-muted-foreground">Expert ratings before vs after Flush</div>
-              </div>
-              <div className="bg-muted/30 rounded-lg p-3">
-                <div className="font-medium text-foreground">Noise Reduction</div>
-                <div className="text-muted-foreground">% of irrelevant content removed</div>
-              </div>
-              <div className="bg-muted/30 rounded-lg p-3">
-                <div className="font-medium text-foreground">Task Completion Rate</div>
-                <div className="text-muted-foreground">Satisfactory answers on first try</div>
-              </div>
-              <div className="bg-muted/30 rounded-lg p-3">
-                <div className="font-medium text-foreground">Iteration Reduction</div>
-                <div className="text-muted-foreground">Fewer cycles to get good results</div>
-              </div>
-              <div className="bg-muted/30 rounded-lg p-3">
-                <div className="font-medium text-foreground">Time-to-Output</div>
-                <div className="text-muted-foreground">Faster path to acceptable answers</div>
-              </div>
-              <div className="bg-muted/30 rounded-lg p-3">
-                <div className="font-medium text-foreground">User Satisfaction</div>
-                <div className="text-muted-foreground">Clarity and usefulness scores</div>
-              </div>
-            </div>
-          </div>
-        )}
+        <AnalyticsDashboard
+          annotations={allAnnotations}
+          originalPrompt="Please analyze this AI response and improve it based on my feedback:"
+          originalResponse={content}
+        />
       </Card>
 
       {/* Prompt Refinement */}
