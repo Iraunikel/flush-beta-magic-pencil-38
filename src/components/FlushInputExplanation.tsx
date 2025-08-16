@@ -109,33 +109,7 @@ const FlushInputExplanation: React.FC = () => {
           </div>
         </div>
 
-        {/* Magic Pencil Features */}
-        <div className="space-y-4">
-          <h3 className="font-semibold text-foreground flex items-center gap-2">
-            <Wand2 className="w-5 h-5 text-accent" />
-            Magic Pencil Features
-          </h3>
-          <div className="grid md:grid-cols-3 gap-4">
-            <div className="bg-muted/30 rounded-lg p-4">
-              <div className="text-annotation-high font-semibold mb-2">⭕ Circle = High</div>
-              <div className="text-sm text-muted-foreground">Draw circles around highly relevant content</div>
-            </div>
-            <div className="bg-muted/30 rounded-lg p-4">
-              <div className="text-annotation-medium font-semibold mb-2">⬜ Square = Medium</div>
-              <div className="text-sm text-muted-foreground">Draw squares around moderately relevant content</div>
-            </div>
-            <div className="bg-muted/30 rounded-lg p-4">
-              <div className="text-annotation-low font-semibold mb-2">⚡ Zigzag = Low</div>
-              <div className="text-sm text-muted-foreground">Draw zigzags over less relevant content</div>
-            </div>
-          </div>
-        </div>
-
-        <div className="text-center pt-4 border-t border-border">
-          <p className="text-sm text-muted-foreground">
-            Try the Magic Pencil now with the demo content above to experience the annotation workflow!
-          </p>
-        </div>
+        {/* Removed Magic Pencil Features block as requested */}
       </div>
     </Card>
   );

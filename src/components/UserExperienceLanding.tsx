@@ -115,12 +115,12 @@ const UserExperienceLanding: React.FC<UserExperienceLandingProps> = ({ onStartAn
             </span>
             <br />
             <span className="text-4xl md:text-5xl text-muted-foreground">
-              UVP to be added
+              Transform lengthy prompts into intuitive, efficient AI editing
             </span>
           </h1>
           
           <p className="hero-subtitle text-xl md:text-2xl text-muted-foreground mb-8 max-w-2xl mx-auto leading-relaxed">
-            Transform lenghtly prompts into intuitive, efficient AI editing.
+            Flush helps you to focus on what’s important and clear the clutter fast.
           </p>
           
           <div className="hero-cta flex flex-col sm:flex-row gap-4 justify-center items-center">
