@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import MagicPencilDemo from './MagicPencilDemo';
+import MagicPencilExperience from './MagicPencilExperience';
 import { 
   Wand2, 
   Sparkles, 
@@ -190,157 +190,8 @@ const UserExperienceLanding: React.FC<UserExperienceLandingProps> = ({ onStartAn
         </div>
       </section>
 
-      {/* Interactive Magic Pencil Demo Section */}
-      <AnimatePresence mode="wait">
-        {!showDemo ? (
-          <motion.section 
-            key="demo-intro"
-            ref={featuresRef} 
-            className="py-24 px-4"
-            initial={{ opacity: 1 }}
-            exit={{ opacity: 0, y: -50 }}
-            transition={{ duration: 0.5 }}
-          >
-            <div className="max-w-6xl mx-auto">
-              <div className="text-center mb-16">
-                <motion.div
-                  initial={{ y: 50, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{ duration: 0.8, ease: "backOut" }}
-                >
-                  <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-6">
-                    The Haptic Revolution
-                  </h2>
-                  <p className="text-xl text-muted-foreground mb-4">
-                    Training conversations, not just editing text
-                  </p>
-                </motion.div>
-
-                {/* Interactive Demo Launch Card */}
-                <motion.div
-                  className="max-w-4xl mx-auto mb-12"
-                  initial={{ scale: 0.9, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ delay: 0.3, duration: 0.6 }}
-                >
-                  <Card className="relative overflow-hidden bg-gradient-to-br from-primary/10 via-accent/5 to-primary-glow/10 border-primary/20 hover:border-primary/40 transition-all duration-500 cursor-pointer group"
-                        onClick={() => setShowDemo(true)}>
-                    
-                    {/* Animated Background */}
-                    <div className="absolute inset-0 bg-gradient-mesh opacity-30 group-hover:opacity-50 transition-opacity duration-500" />
-                    
-                    <div className="relative z-10 p-12 text-center">
-                      <motion.div
-                        className="inline-flex items-center justify-center w-24 h-24 bg-gradient-primary rounded-full mb-6 group-hover:scale-110 transition-transform duration-300"
-                        whileHover={{ rotate: 10 }}
-                      >
-                        <Play className="w-12 h-12 text-white ml-1" />
-                      </motion.div>
-                      
-                      <h3 className="text-3xl font-bold text-foreground mb-4 group-hover:text-primary transition-colors duration-300">
-                        Experience Magic Pencil Live
-                      </h3>
-                      
-                      <p className="text-lg text-muted-foreground mb-6 max-w-2xl mx-auto">
-                        See the paradigm shift in action. From typing prompts to training conversations through direct visual feedback.
-                      </p>
-                      
-                      <div className="flex flex-wrap justify-center gap-3 mb-6">
-                        <Badge className="bg-annotation-high/20 text-annotation-high border-annotation-high/30">
-                          🔴 Enhance Content
-                        </Badge>
-                        <Badge className="bg-annotation-neutral/20 text-annotation-neutral border-annotation-neutral/30">
-                          ⚪ Keep Neutral
-                        </Badge>
-                        <Badge className="bg-annotation-low/20 text-annotation-low border-annotation-low/30">
-                          🔵 Flush Away
-                        </Badge>
-                      </div>
-                      
-                      <motion.div
-                        animate={{ 
-                          y: [0, -10, 0],
-                          opacity: [0.7, 1, 0.7]
-                        }}
-                        transition={{ 
-                          duration: 2,
-                          repeat: Infinity,
-                          ease: "easeInOut"
-                        }}
-                      >
-                        <p className="text-primary font-medium">
-                          ✨ Click to start the interactive demo
-                        </p>
-                      </motion.div>
-                    </div>
-                    
-                    {/* Floating Elements */}
-                    <Sparkles className="absolute top-8 left-8 w-6 h-6 text-primary-glow opacity-50 group-hover:opacity-100 transition-opacity duration-300" />
-                    <Wand2 className="absolute top-8 right-8 w-6 h-6 text-accent opacity-50 group-hover:opacity-100 transition-opacity duration-300" />
-                    <Palette className="absolute bottom-8 left-8 w-6 h-6 text-annotation-high opacity-50 group-hover:opacity-100 transition-opacity duration-300" />
-                    <Target className="absolute bottom-8 right-8 w-6 h-6 text-annotation-medium opacity-50 group-hover:opacity-100 transition-opacity duration-300" />
-                  </Card>
-                </motion.div>
-
-                {/* Paradigm Shift Explanation */}
-                <div className="max-w-3xl mx-auto">
-                  <div className="relative p-6 bg-gradient-to-br from-primary/10 via-accent/5 to-primary-glow/10 rounded-2xl border border-primary/20">
-                    <div className="flex items-center justify-between mb-4">
-                      <Badge className="bg-red-500/20 text-red-400 border-red-500/30">
-                        Before
-                      </Badge>
-                      <Type className="w-8 h-8 text-muted-foreground" />
-                    </div>
-                    <p className="text-muted-foreground text-left mb-4">
-                      "Please write a marketing email but make it more engaging and less corporate..."
-                    </p>
-                    <p className="text-xs text-muted-foreground text-left italic">
-                      *Cross fingers and hope the AI understands what "engaging" means*
-                    </p>
-                  </div>
-                  
-                  <div className="flex justify-center my-8">
-                    <div className="w-px h-12 bg-gradient-to-b from-transparent via-primary to-transparent" />
-                  </div>
-                  
-                  <div className="relative p-6 bg-gradient-to-br from-annotation-high/10 via-annotation-medium/5 to-annotation-low/10 rounded-2xl border border-annotation-high/20">
-                    <div className="flex items-center justify-between mb-4">
-                      <Badge className="bg-annotation-high/20 text-annotation-high border-annotation-high/30">
-                        After
-                      </Badge>
-                      <div className="flex gap-2">
-                        <Palette className="w-6 h-6 text-annotation-high" />
-                        <MousePointer className="w-6 h-6 text-annotation-medium" />
-                        <Zap className="w-6 h-6 text-primary" />
-                      </div>
-                    </div>
-                    <p className="text-foreground text-left mb-4">
-                      <span className="bg-annotation-high/20 px-1 rounded">Direct visual feedback</span> on AI output — 
-                      <span className="bg-annotation-medium/20 px-1 rounded">highlight what works</span>, 
-                      <span className="bg-annotation-low/20 px-1 rounded line-through">cross out what doesn't</span>
-                    </p>
-                    <p className="text-xs text-primary text-left italic">
-                      *AI learns your preferences instantly through tactile interaction*
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </motion.section>
-        ) : (
-          <motion.div
-            key="demo"
-            initial={{ opacity: 0, y: 50 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-          >
-            <MagicPencilDemo onComplete={() => {
-              setShowDemo(false);
-              onStartAnnotating();
-            }} />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Magic Pencil Interactive Experience */}
+      <MagicPencilExperience onStartAnnotating={onStartAnnotating} />
 
       {/* Features Section */}
       {!showDemo && (
