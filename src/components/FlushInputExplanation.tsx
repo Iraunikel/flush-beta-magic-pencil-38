@@ -86,6 +86,10 @@ const FlushInputExplanation: React.FC = () => {
           </h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div className="text-center p-3 rounded-lg bg-muted/30">
+              <Bot className="w-6 h-6 mx-auto mb-2 text-primary" />
+              <div className="text-xs font-medium">AI Integration</div>
+            </div>
+            <div className="text-center p-3 rounded-lg bg-muted/30">
               <FileText className="w-6 h-6 mx-auto mb-2 text-primary" />
               <div className="text-xs font-medium">Text Input</div>
             </div>

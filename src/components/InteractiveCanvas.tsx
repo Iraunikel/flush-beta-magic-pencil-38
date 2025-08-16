@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Heart, ThumbsUp, ThumbsDown, Minus, Eraser, Hand, RotateCcw, TrendingUp, Palette } from 'lucide-react';
+import { Heart, ThumbsUp, ThumbsDown, Minus, Eraser, Hand, RotateCcw, TrendingUp, Palette, Bug } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export type DrawingTool = 'magic' | 'high' | 'medium' | 'low' | 'neutral' | 'eraser' | 'pan';
@@ -47,6 +47,10 @@ interface DebugSnapshot {
   scaleY: number;
   canvasW: number;
   canvasH: number;
+  drawing?: boolean;
+  tool?: string;
+  pressure?: number;
+  gesture?: string;
 }
 
 const InteractiveCanvas: React.FC<InteractiveCanvasProps> = ({
@@ -68,6 +72,7 @@ const InteractiveCanvas: React.FC<InteractiveCanvasProps> = ({
   const [gesturePoints, setGesturePoints] = useState<Point[]>([]);
   const [magicToolMode, setMagicToolMode] = useState<'idle' | 'medium' | 'high' | 'low'>('idle');
   const [debugEnabled, setDebugEnabled] = useState<boolean>(true);
+  const [showDebug, setShowDebug] = useState<boolean>(false);
   const [debugLogs, setDebugLogs] = useState<string[]>([]);
   const [debugSnapshot, setDebugSnapshot] = useState<DebugSnapshot>({ 
     points: 0, zigzag: false, circle: false, square: false, mode: 'idle', 
@@ -940,6 +945,91 @@ const InteractiveCanvas: React.FC<InteractiveCanvasProps> = ({
                   style={{ width: `${(annotations.filter(a => a.type === 'neutral').length / annotations.length) * 100}%` }}
                 ></div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Debug Console */}
+      {debugEnabled && (
+        <div className="mt-6">
+          <div className="bg-muted/50 rounded-xl p-6 border border-border">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Bug className="w-5 h-5 text-primary" />
+                <h3 className="text-lg font-semibold">Debug Console</h3>
+                <Badge variant="secondary">{debugLogs.length} logs</Badge>
+              </div>
+              <Button
+                variant="outline" 
+                size="sm"
+                onClick={() => setDebugLogs([])}
+                className="h-8 text-xs"
+              >
+                Clear Logs
+              </Button>
+            </div>
+            
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+              <div className="bg-background/50 rounded-lg p-3">
+                <div className="text-xs text-muted-foreground">Drawing</div>
+                <div className="font-mono text-sm">
+                  {debugSnapshot.drawing ? 'Yes' : 'No'}
+                </div>
+              </div>
+              <div className="bg-background/50 rounded-lg p-3">
+                <div className="text-xs text-muted-foreground">Tool</div>
+                <div className="font-mono text-sm">
+                  {debugSnapshot.tool || 'none'}
+                </div>
+              </div>
+              <div className="bg-background/50 rounded-lg p-3">
+                <div className="text-xs text-muted-foreground">Pressure</div>
+                <div className="font-mono text-sm">
+                  {debugSnapshot.pressure?.toFixed(2) || '0.00'}
+                </div>
+              </div>
+              <div className="bg-background/50 rounded-lg p-3">
+                <div className="text-xs text-muted-foreground">Points</div>
+                <div className="font-mono text-sm">
+                  {debugSnapshot.points || 0}
+                </div>
+              </div>
+            </div>
+            
+            {debugSnapshot.gesture && (
+              <div className="bg-accent/10 rounded-lg p-3 mb-4">
+                <div className="text-xs text-muted-foreground mb-2">Last Gesture Analysis</div>
+                <div className="grid grid-cols-3 gap-2 text-xs">
+                  <div>
+                    <span className="text-muted-foreground">Type:</span> 
+                    <span className="font-mono ml-1">{debugSnapshot.gesture}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Corners:</span> 
+                    <span className="font-mono ml-1">{debugSnapshot.corners || 0}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Aspect:</span> 
+                    <span className="font-mono ml-1">{debugSnapshot.aspect?.toFixed(2) || '0.00'}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            <div className="bg-background/50 rounded-lg p-3 max-h-40 overflow-y-auto">
+              <div className="text-xs text-muted-foreground mb-2">Activity Log</div>
+              {debugLogs.length === 0 ? (
+                <div className="text-xs text-muted-foreground italic">No logs yet...</div>
+              ) : (
+                <div className="space-y-1">
+                  {debugLogs.slice(-10).map((log, index) => (
+                    <div key={index} className="font-mono text-xs text-foreground/80">
+                      {log}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -211,8 +211,25 @@ const EnhancedCanvasAnnotation: React.FC<EnhancedCanvasAnnotationProps> = ({
       return 'circle';
     }
     
-    // Square detection for MEDIUM relevance (orange)
-    if (aspectRatio >= 0.7 && closureRatio < 0.3 && points.length >= 20) {
+    // Square detection for MEDIUM relevance (orange) - improved detection
+    let corners = 0;
+    const threshold = Math.min(width, height) * 0.1;
+    
+    for (let i = 5; i < points.length - 5; i++) {
+      const prev = points[i - 5];
+      const curr = points[i];
+      const next = points[i + 5];
+      
+      const angle1 = Math.atan2(curr.y - prev.y, curr.x - prev.x);
+      const angle2 = Math.atan2(next.y - curr.y, next.x - curr.x);
+      let angleDiff = Math.abs(angle2 - angle1);
+      
+      if (angleDiff > Math.PI) angleDiff = 2 * Math.PI - angleDiff;
+      
+      if (angleDiff > Math.PI / 3) corners++; // > 60 degrees
+    }
+    
+    if (aspectRatio >= 0.7 && corners >= 3 && closureRatio < 0.3) {
       navigator.vibrate?.(200);
       return 'square';
     }

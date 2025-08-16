@@ -85,6 +85,13 @@ const CombinedAnnotationInterface: React.FC<CombinedAnnotationInterfaceProps> = 
               text={content}
               onAnnotationsChange={handleCanvasAnnotationsChange}
             />
+            {/* Debug option for canvas */}
+            <div className="mt-4 p-4 bg-muted/30 rounded-lg">
+              <p className="text-sm text-muted-foreground">
+                💡 <strong>Developer Tip:</strong> Switch to the <code>InteractiveCanvas</code> component 
+                to access advanced debug tools and gesture analysis features.
+              </p>
+            </div>
           </TabsContent>
           
           <TabsContent value="text" className="mt-6">
