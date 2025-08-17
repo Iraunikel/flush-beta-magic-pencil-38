@@ -213,14 +213,18 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
   // Enhanced gesture-based mode switching with proper logic
   const detectGesture = useCallback((velocityY: number) => {
     const now = Date.now();
-    const threshold = 6; // Lowered threshold for more sensitive detection
+    const threshold = 8; // Sensitive threshold for gesture detection
     
     if (Math.abs(velocityY) > threshold) {
       const newDirection = velocityY < 0 ? 'up' : 'down';
       
       setGestureDetection(prev => {
-        // Reset if direction changed or too much time passed
-        if (prev.direction !== newDirection || now - prev.lastSwingTime > 1000) {
+        // For a fast double swing, we want direction change within a short window
+        const isDirectionChange = prev.direction !== 'none' && prev.direction !== newDirection;
+        const timeDiff = now - prev.lastSwingTime;
+        
+        // Reset if too much time passed
+        if (timeDiff > 800) {
           return {
             velocityY,
             direction: newDirection,
@@ -229,35 +233,33 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
           };
         }
         
-        const newSwingCount = prev.swingCount + 1;
+        // Count swings and check for rapid direction changes (double swing)
+        const newSwingCount = isDirectionChange ? prev.swingCount + 1 : 1;
         
-        // Double swing detection with proper mode transition logic
-        if (newSwingCount === 2 && now - prev.lastSwingTime < 600) {
+        // Double swing detected: rapid up-down or down-up motion
+        if (newSwingCount >= 2 && timeDiff < 400) {
           let newMode: 'hot' | 'neutral' | 'flush' = selectedMode;
           
-          if (newDirection === 'up') {
-            // Double swing up logic
-            if (selectedMode === 'flush') {
-              newMode = 'neutral'; // First swing: flush → neutral
-            } else if (selectedMode === 'neutral') {
-              newMode = 'hot'; // Second swing: neutral → hot
-            } else if (selectedMode === 'hot') {
-              newMode = 'neutral'; // From hot, first swing goes to neutral
-            }
-          } else if (newDirection === 'down') {
-            // Double swing down logic
-            if (selectedMode === 'hot') {
-              newMode = 'neutral'; // First swing: hot → neutral
-            } else if (selectedMode === 'neutral') {
-              newMode = 'flush'; // Second swing: neutral → flush
-            } else if (selectedMode === 'flush') {
-              newMode = 'neutral'; // From flush, first swing goes to neutral
-            }
+          // Determine direction preference based on last movement
+          const preferUp = newDirection === 'up';
+          
+          if (selectedMode === 'neutral') {
+            // From neutral: up goes to hot, down goes to flush
+            newMode = preferUp ? 'hot' : 'flush';
+          } else if (selectedMode === 'hot') {
+            // From hot: first step always to neutral
+            newMode = 'neutral';
+          } else if (selectedMode === 'flush') {
+            // From flush: first step always to neutral
+            newMode = 'neutral';
           }
           
           if (newMode !== selectedMode) {
             setSelectedMode(newMode);
             playSound('complete');
+            
+            // Add debugging
+            console.log(`Mode switched: ${selectedMode} → ${newMode} (direction: ${newDirection})`);
             
             // Visual feedback based on new mode
             const indicator = newMode === 'hot' ? '.mode-indicator-hot' : 
@@ -632,7 +634,7 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
           })
           .to(`.word-${adjIndex}`, {
             scale: 1,
-            backgroundColor: 'transparent',
+            backgroundColor: 'rgba(0, 0, 0, 0)',
             duration: 0.4,
             ease: "power2.out"
           });
@@ -680,11 +682,11 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
             <motion.span
               key={`word-${index}`}
               className={`word-${index} relative inline-block cursor-pointer transition-all duration-300 mx-0.5 my-1 px-1 py-0.5 rounded-md`}
-              style={{
-                background: annotation ? modeStyles[annotation.type].bg : 'transparent',
-                border: annotation ? `1px solid ${modeStyles[annotation.type].border}` : '1px solid transparent',
-                boxShadow: annotation ? modeStyles[annotation.type].glow : 'none'
-              }}
+                style={{
+                  background: annotation ? modeStyles[annotation.type].bg : 'rgba(0, 0, 0, 0)',
+                  border: annotation ? `1px solid ${modeStyles[annotation.type].border}` : '1px solid rgba(0, 0, 0, 0)',
+                  boxShadow: annotation ? modeStyles[annotation.type].glow : 'none'
+                }}
               onMouseEnter={() => {
                 setHoveredWordIndex(index);
                 
@@ -791,9 +793,9 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
                   className="absolute inset-0 pointer-events-none"
                   animate={{
                     background: [
-                      'transparent',
+                      'rgba(0, 0, 0, 0)',
                       `rgba(${selectedMode === 'hot' ? '255, 87, 51' : selectedMode === 'flush' ? '59, 130, 246' : '148, 163, 184'}, 0.1)`,
-                      'transparent'
+                      'rgba(0, 0, 0, 0)'
                     ]
                   }}
                   transition={{
