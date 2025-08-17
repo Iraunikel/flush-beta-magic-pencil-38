@@ -237,60 +237,125 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
     }));
   }, [annotations]);
 
-  // Enhanced text selection handler for desktop mouse interaction
-  const handleMouseSelection = useCallback(() => {
-    const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0 || !textRef.current) return;
+  // State for magical click-to-select
+  const [isSelecting, setIsSelecting] = useState(false);
+  const [selectionStart, setSelectionStart] = useState<number | null>(null);
 
-    const range = selection.getRangeAt(0);
-    const selectedText = range.toString().trim();
+  // Magical click-to-select implementation
+  const handleMagicalSelection = useCallback((event: React.MouseEvent) => {
+    if (!textRef.current) return;
     
-    if (!selectedText) return;
-
-    // Check if selection is within our text container
-    if (!textRef.current.contains(range.commonAncestorContainer)) return;
-
-    console.log('🖱️ Mouse selection detected:', selectedText);
-
-    // Get the full text content
+    // Get click position
+    const range = document.caretRangeFromPoint(event.clientX, event.clientY);
+    if (!range || !textRef.current.contains(range.startContainer)) return;
+    
     const fullText = textRef.current.textContent || '';
+    const clickPosition = getTextPositionFromRange(range);
     
-    // Find the start position in the plain text
-    const start = fullText.indexOf(selectedText);
-    if (start === -1) return;
-    
-    const end = start + selectedText.length;
-
-    // Handle eraser mode - remove overlapping annotations
-    if (selectedMode === 'eraser') {
-      setAnnotations(prev => prev.filter(annotation => 
-        !(annotation.start < end && annotation.end > start)
-      ));
-      selection.removeAllRanges();
+    if (!isSelecting) {
+      // Start selection
+      setIsSelecting(true);
+      setSelectionStart(clickPosition);
       playSound('select');
-      return;
+      
+      // Visual feedback for selection start
+      const startSpan = document.createElement('span');
+      startSpan.className = 'magical-selection-start';
+      startSpan.style.cssText = `
+        position: absolute;
+        width: 2px;
+        height: 20px;
+        background: hsl(var(--primary));
+        animation: pulse 1s infinite;
+        pointer-events: none;
+        z-index: 10;
+      `;
+      
+      const rect = range.getBoundingClientRect();
+      const containerRect = textRef.current.getBoundingClientRect();
+      startSpan.style.left = `${rect.left - containerRect.left}px`;
+      startSpan.style.top = `${rect.top - containerRect.top}px`;
+      
+      textRef.current.appendChild(startSpan);
+      
+      // Remove after 3 seconds if no end selection
+      setTimeout(() => {
+        if (startSpan.parentNode) {
+          startSpan.remove();
+        }
+      }, 3000);
+      
+    } else {
+      // End selection
+      if (selectionStart === null) return;
+      
+      const start = Math.min(selectionStart, clickPosition);
+      const end = Math.max(selectionStart, clickPosition);
+      
+      if (start === end) {
+        // Reset if clicking same position
+        setIsSelecting(false);
+        setSelectionStart(null);
+        return;
+      }
+      
+      const selectedText = fullText.slice(start, end).trim();
+      if (!selectedText) {
+        setIsSelecting(false);
+        setSelectionStart(null);
+        return;
+      }
+      
+      // Handle eraser mode
+      if (selectedMode === 'eraser') {
+        setAnnotations(prev => prev.filter(annotation => 
+          !(annotation.start < end && annotation.end > start)
+        ));
+        setIsSelecting(false);
+        setSelectionStart(null);
+        playSound('complete');
+        
+        // Remove visual indicators
+        textRef.current.querySelectorAll('.magical-selection-start').forEach(el => el.remove());
+        return;
+      }
+      
+      // Create annotation
+      const newAnnotation: AnnotationData = {
+        id: `magical-${Date.now()}-${Math.random()}`,
+        start,
+        end,
+        type: selectedMode as 'hot' | 'neutral' | 'flush',
+        timestamp: Date.now(),
+        intensity: selectedMode === 'hot' ? 100 : selectedMode === 'flush' ? 0 : 50
+      };
+      
+      setAnnotations(prev => [...prev, newAnnotation]);
+      
+      // Show comment modal using Feature 1's effortless flow
+      setActiveAnnotationForComment(newAnnotation.id);
+      setCommentInputText('');
+      setShowCommentModal(true);
+      
+      setIsSelecting(false);
+      setSelectionStart(null);
+      playSound('complete');
+      
+      // Remove visual indicators
+      textRef.current.querySelectorAll('.magical-selection-start').forEach(el => el.remove());
     }
+  }, [isSelecting, selectionStart, selectedMode, playSound]);
 
-    // Create new annotation for other modes
-    const newAnnotation: AnnotationData = {
-      id: `mouse-${Date.now()}-${Math.random()}`,
-      start,
-      end,
-      type: selectedMode as 'hot' | 'neutral' | 'flush',
-      timestamp: Date.now(),
-      intensity: selectedMode === 'hot' ? 100 : selectedMode === 'flush' ? 0 : 50
-    };
-
-    setAnnotations(prev => [...prev, newAnnotation]);
+  // Helper to get text position from range
+  const getTextPositionFromRange = useCallback((range: Range): number => {
+    if (!textRef.current) return 0;
     
-    // Show comment modal
-    setActiveAnnotationForComment(newAnnotation.id);
-    setCommentInputText('');
-    setShowCommentModal(true);
+    const preRange = document.createRange();
+    preRange.selectNodeContents(textRef.current);
+    preRange.setEnd(range.startContainer, range.startOffset);
     
-    selection.removeAllRanges();
-    playSound('select');
-  }, [selectedMode, playSound]);
+    return preRange.toString().length;
+  }, []);
 
   // Helper function to calculate text positions from DOM range
   const calculateTextPosition = useCallback((range: Range, container: HTMLElement) => {
@@ -329,20 +394,28 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
     }
   }, [isDragging]);
 
-  // Handle comment submission
+  // Handle comment submission (Feature 1's effortless flow)
   const handleCommentSubmit = useCallback(() => {
     if (activeAnnotationForComment === null) return;
     
     setAnnotations(prev => prev.map(annotation => 
       annotation.id === activeAnnotationForComment
-        ? { ...annotation, comment: commentInputText }
+        ? { ...annotation, comment: commentInputText.trim() || undefined }
         : annotation
     ));
     
     setShowCommentModal(false);
     setActiveAnnotationForComment(null);
     setCommentInputText('');
-  }, [activeAnnotationForComment, commentInputText]);
+    playSound('complete');
+  }, [activeAnnotationForComment, commentInputText, playSound]);
+
+  // Handle comment cancel
+  const handleCommentCancel = useCallback(() => {
+    setShowCommentModal(false);
+    setActiveAnnotationForComment(null);
+    setCommentInputText('');
+  }, []);
 
   // Clear all annotations
   const clearAnnotations = useCallback(() => {
@@ -799,7 +872,7 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
                 `}
                 onMouseEnter={() => setIsInTextArea(true)}
                 onMouseLeave={() => setIsInTextArea(false)}
-                onMouseUp={handleMouseSelection}
+                onClick={handleMagicalSelection}
                 style={{ 
                   userSelect: 'text',
                   WebkitUserSelect: 'text',

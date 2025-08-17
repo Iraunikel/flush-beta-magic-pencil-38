@@ -282,4 +282,20 @@
     background-size: 20px 20px;
     opacity: 0.3;
   }
+
+  /* Magical selection animation */
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  .magical-selection-start {
+    animation: pulse 1s infinite;
+  }
+
+  /* Enhanced text selection for accessibility */
+  ::selection {
+    background-color: hsl(var(--primary) / 0.3);
+    color: hsl(var(--primary-foreground));
+  }
 }
