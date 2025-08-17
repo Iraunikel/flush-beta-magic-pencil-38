@@ -237,7 +237,7 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
     }));
   }, [annotations]);
 
-  // Enhanced text selection handler for range selection
+  // Enhanced text selection handler with proper DOM range detection
   const handleTextSelection = useCallback(() => {
     if (isDragging) return;
     
@@ -249,41 +249,35 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
     
     if (!selectedText || selectedText.length === 0) return;
 
-    console.log('Selected text:', selectedText);
+    console.log('🎯 Selection detected:', { selectedText, rangeCount: selection.rangeCount });
 
-    // Simple approach: find the text in the demo text string
-    const textStart = demoText.indexOf(selectedText);
-    let selectionStart = textStart;
-    let selectionEnd = textStart + selectedText.length;
-
-    // If direct match fails, try to find a partial match
-    if (textStart === -1) {
-      // Try to find the text with some flexibility for whitespace
-      const normalizedSelected = selectedText.replace(/\s+/g, ' ');
-      const normalizedDemo = demoText.replace(/\s+/g, ' ');
-      const flexibleStart = normalizedDemo.indexOf(normalizedSelected);
-      
-      if (flexibleStart === -1) {
-        console.warn('Could not find selected text in content');
-        selection.removeAllRanges();
-        return;
-      }
-      
-      // Calculate the actual positions in the original text
-      selectionStart = flexibleStart;
-      selectionEnd = flexibleStart + normalizedSelected.length;
+    // Get the text container reference
+    if (!textRef.current) {
+      console.warn('Text container ref not available');
+      return;
     }
 
-    console.log('Selection range:', selectionStart, '-', selectionEnd);
+    // Calculate character positions using DOM traversal
+    const { startPos, endPos } = calculateTextPosition(range, textRef.current);
+    
+    if (startPos === -1 || endPos === -1) {
+      console.warn('Could not calculate text positions');
+      selection.removeAllRanges();
+      return;
+    }
+
+    console.log('📍 Calculated positions:', { startPos, endPos, selectedText });
 
     // For eraser mode, remove overlapping annotations
     if (selectedMode === 'eraser') {
       setAnnotations(prev => {
         const filtered = prev.filter(annotation => {
-          const overlap = !(annotation.end <= selectionStart || annotation.start >= selectionEnd);
+          const overlap = !(annotation.end <= startPos || annotation.start >= endPos);
+          if (overlap) {
+            console.log('🗑️ Removing overlapping annotation:', annotation);
+          }
           return !overlap;
         });
-        console.log('Removed overlapping annotations, remaining:', filtered.length);
         return filtered;
       });
       
@@ -295,19 +289,19 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
     // Create new annotation
     const newAnnotation: AnnotationData = {
       id: `annotation-${Date.now()}-${Math.random()}`,
-      start: selectionStart,
-      end: selectionEnd,
+      start: startPos,
+      end: endPos,
       type: selectedMode as 'hot' | 'neutral' | 'flush',
       timestamp: Date.now(),
       intensity: selectedMode === 'hot' ? 100 : selectedMode === 'flush' ? 0 : 50
     };
 
-    console.log('Creating annotation:', newAnnotation);
+    console.log('✨ Creating annotation:', newAnnotation);
 
     // Add the annotation
     setAnnotations(prev => {
       const updated = [...prev, newAnnotation];
-      console.log('Total annotations:', updated.length);
+      console.log('📊 Total annotations:', updated.length);
       return updated;
     });
     
@@ -320,6 +314,34 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
     selection.removeAllRanges();
     playSound('select');
   }, [selectedMode, isDragging, playSound]);
+
+  // Helper function to calculate text positions from DOM range
+  const calculateTextPosition = useCallback((range: Range, container: HTMLElement) => {
+    try {
+      // Create a new range from the start of the container to the start of selection
+      const preSelectionRange = document.createRange();
+      preSelectionRange.selectNodeContents(container);
+      preSelectionRange.setEnd(range.startContainer, range.startOffset);
+      
+      // Calculate start position by counting characters
+      const startPos = preSelectionRange.toString().length;
+      
+      // Calculate end position
+      const endPos = startPos + range.toString().length;
+      
+      console.log('🧮 Position calculation:', {
+        preSelectionText: preSelectionRange.toString().slice(-20),
+        selectedText: range.toString(),
+        startPos,
+        endPos
+      });
+      
+      return { startPos, endPos };
+    } catch (error) {
+      console.error('Error calculating text position:', error);
+      return { startPos: -1, endPos: -1 };
+    }
+  }, []);
 
   // Handle annotation click for adding comments
   const handleAnnotationClick = useCallback((annotation: AnnotationData) => {
@@ -801,10 +823,13 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
                 onMouseEnter={() => setIsInTextArea(true)}
                 onMouseLeave={() => setIsInTextArea(false)}
                 onMouseUp={handleTextSelection}
+                onSelect={handleTextSelection}
+                onSelectCapture={handleTextSelection}
                 style={{ 
                   userSelect: 'text',
                   WebkitUserSelect: 'text',
-                  MozUserSelect: 'text'
+                  MozUserSelect: 'text',
+                  msUserSelect: 'text'
                 }}
               >
                 {renderAnnotatedText()}
