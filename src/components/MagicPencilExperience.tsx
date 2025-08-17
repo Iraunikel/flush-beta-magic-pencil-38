@@ -252,11 +252,11 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
     }
   }, [annotations, undoStack, playSound]);
 
-  // Fixed priority-based mode switching: Hot > Neutral > Flush > Eraser
-  // Detects a fast double swipe in the SAME direction (up→up or down→down)
+  // Fixed priority-based mode switching: Hot > Neutral > Flush (no eraser in cycle)
+  // Simple single swipe detection for reliable mode switching
   const detectGesture = useCallback((velocityY: number) => {
     const now = Date.now();
-    const threshold = 6; // Slightly more sensitive
+    const threshold = 8; // More responsive threshold
     
     if (Math.abs(velocityY) > threshold) {
       const newDirection = velocityY < 0 ? 'up' : 'down';
@@ -264,71 +264,40 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
       setGestureDetection(prev => {
         const timeDiff = now - prev.lastSwingTime;
         
-        // Reset if too much time passed
-        if (timeDiff > 1000) {
-          return {
-            velocityY,
-            direction: newDirection,
-            swingCount: 1,
-            lastSwingTime: now
-          };
+        // Prevent rapid consecutive gestures (cooldown)
+        if (timeDiff < 300) {
+          return prev;
         }
         
-        // Count consecutive swipes in the SAME direction
-        const sameDirection = prev.direction === newDirection;
-        const newSwingCount = sameDirection ? prev.swingCount + 1 : 1;
+        let newMode: 'hot' | 'neutral' | 'flush' | 'eraser' = selectedMode;
         
-        // Double swipe (same direction twice) detected within time window
-        if (newSwingCount >= 2 && timeDiff < 500) {
-          let newMode: 'hot' | 'neutral' | 'flush' | 'eraser' = selectedMode;
+        // Simple cycle: Hot ↔ Neutral ↔ Flush (no eraser in gesture cycle)
+        if (newDirection === 'down') {
+          // Down swipe = Lower priority
+          if (selectedMode === 'hot') newMode = 'neutral';
+          else if (selectedMode === 'neutral') newMode = 'flush';
+          // flush stays flush on down swipe
+        } else {
+          // Up swipe = Higher priority  
+          if (selectedMode === 'flush') newMode = 'neutral';
+          else if (selectedMode === 'neutral') newMode = 'hot';
+          // hot stays hot on up swipe
+        }
+        
+        if (newMode !== selectedMode) {
+          console.log(`Mode switch: ${selectedMode} → ${newMode} via ${newDirection}-swipe`);
+          setSelectedMode(newMode);
+          playSound('complete');
           
-          // Priority levels: Hot (3) > Neutral (2) > Flush (1) > Eraser (0)
-          const modePriority = {
-            'hot': 3,
-            'neutral': 2, 
-            'flush': 1,
-            'eraser': 0
-          };
-          
-          const currentPriority = modePriority[selectedMode];
-          
-          if (newDirection === 'up') {
-            // Up swipe = Higher priority
-            if (currentPriority < 3) {
-              const modes = ['eraser', 'flush', 'neutral', 'hot'];
-              newMode = modes[currentPriority + 1] as typeof newMode;
-            }
-          } else {
-            // Down swipe = Lower priority  
-            if (currentPriority > 0) {
-              const modes = ['eraser', 'flush', 'neutral', 'hot'];
-              newMode = modes[currentPriority - 1] as typeof newMode;
-            }
-          }
-          
-          if (newMode !== selectedMode) {
-            console.log(`Priority switch: ${selectedMode} (${currentPriority}) → ${newMode} (${modePriority[newMode]}) via ${newDirection}-swipe`);
-            setSelectedMode(newMode);
-            playSound('complete');
-            
-            // Visual feedback
-            const indicator = `.mode-indicator-${newMode}`;
-            gsap.to(indicator, { scale: 1.6, duration: 0.2, yoyo: true, repeat: 1 });
-          }
-          
-          // Reset after successful gesture
-          return {
-            velocityY: 0,
-            direction: 'none',
-            swingCount: 0,
-            lastSwingTime: 0
-          };
+          // Visual feedback
+          const indicator = `.mode-indicator-${newMode}`;
+          gsap.to(indicator, { scale: 1.6, duration: 0.2, yoyo: true, repeat: 1 });
         }
         
         return {
           velocityY,
           direction: newDirection,
-          swingCount: Math.max(newSwingCount, 1),
+          swingCount: 1,
           lastSwingTime: now
         };
       });
@@ -632,6 +601,15 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
         });
         playSound('select');
         
+        // Force clear all styles immediately
+        const wordElement = document.querySelector(`.word-${wordIndex}`) as HTMLElement;
+        if (wordElement) {
+          wordElement.style.background = 'transparent';
+          wordElement.style.border = '1px solid transparent';
+          wordElement.style.boxShadow = 'none';
+          wordElement.style.color = '';
+        }
+        
         // Enhanced visual feedback for erasing
         gsap.timeline()
           .to(`.word-${wordIndex}`, {
@@ -645,9 +623,6 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
             scale: 1,
             opacity: 1,
             rotateZ: 0,
-            background: 'rgba(0, 0, 0, 0)',
-            border: '1px solid rgba(0, 0, 0, 0)',
-            boxShadow: 'none',
             duration: 0.4,
             ease: "elastic.out(1, 0.8)"
           });
@@ -657,8 +632,11 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
       return;
     }
     
-    // Check if word is already annotated
-    if (annotations.some(a => a.wordIndex === wordIndex)) return;
+    // Check if word is already annotated - prevent duplicate annotations
+    if (annotations.some(a => a.wordIndex === wordIndex)) {
+      console.log('Word already annotated, skipping');
+      return;
+    }
     
     if (!hasStarted && isClick) {
       setHasStarted(true);
@@ -777,24 +755,13 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
                   border: annotation ? `1px solid ${modeStyles[annotation.type].border}` : '1px solid rgba(0, 0, 0, 0)',
                   boxShadow: annotation ? modeStyles[annotation.type].glow : 'none'
                 }}
-              onMouseEnter={() => {
+               onMouseEnter={() => {
                 setHoveredWordIndex(index);
                 
-                // Immediate erase on hover when eraser is selected
-                if (selectedMode === 'eraser') {
-                  if (annotation) {
-                    handleWordAnnotation(index, word);
-                  }
-                  return;
-                }
-
-                if (!annotation) {
+                // Only auto-annotate on hover for non-eraser modes
+                if (selectedMode !== 'eraser' && !annotation && autoSelectEnabled && hasStarted && !showBanner) {
                   playSound('hover');
-                  
-                  // Immediate auto-select when enabled
-                  if (autoSelectEnabled && hasStarted && !showBanner) {
-                    handleWordAnnotation(index, word);
-                  }
+                  handleWordAnnotation(index, word);
                 }
                 
                 // Breathing effect on hover using GSAP
@@ -821,17 +788,17 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
                   return;
                 }
                 
-                // Allow erasing on click even when autoSelect is paused
-                if (selectedMode === 'eraser' && annotation) {
-                  handleWordAnnotation(index, word, true);
+                // Handle eraser mode - erase on click
+                if (selectedMode === 'eraser') {
+                  if (annotation) {
+                    handleWordAnnotation(index, word, true);
+                  }
                   return;
                 }
 
-                if (!annotation && autoSelectEnabled) {
+                // Handle annotation modes
+                if (!annotation) {
                   handleWordAnnotation(index, word, true);
-                  // Brief pause in auto-select after manual click
-                  setAutoSelectEnabled(false);
-                  setTimeout(() => setAutoSelectEnabled(true), 800);
                 }
               }}
               whileHover={{
