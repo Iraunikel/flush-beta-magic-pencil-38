@@ -769,6 +769,14 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
               onMouseEnter={() => {
                 setHoveredWordIndex(index);
                 
+                // Immediate erase on hover when eraser is selected
+                if (selectedMode === 'eraser') {
+                  if (annotation) {
+                    handleWordAnnotation(index, word);
+                  }
+                  return;
+                }
+
                 if (!annotation) {
                   playSound('hover');
                   
@@ -802,6 +810,12 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
                   return;
                 }
                 
+                // Allow erasing on click even when autoSelect is paused
+                if (selectedMode === 'eraser' && annotation) {
+                  handleWordAnnotation(index, word, true);
+                  return;
+                }
+
                 if (!annotation && autoSelectEnabled) {
                   handleWordAnnotation(index, word, true);
                   // Brief pause in auto-select after manual click
