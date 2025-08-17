@@ -237,83 +237,60 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
     }));
   }, [annotations]);
 
-  // Enhanced text selection handler with proper DOM range detection
-  const handleTextSelection = useCallback(() => {
-    if (isDragging) return;
-    
+  // Enhanced text selection handler for desktop mouse interaction
+  const handleMouseSelection = useCallback(() => {
     const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0) return;
+    if (!selection || selection.rangeCount === 0 || !textRef.current) return;
 
     const range = selection.getRangeAt(0);
     const selectedText = range.toString().trim();
     
-    if (!selectedText || selectedText.length === 0) return;
+    if (!selectedText) return;
 
-    console.log('🎯 Selection detected:', { selectedText, rangeCount: selection.rangeCount });
+    // Check if selection is within our text container
+    if (!textRef.current.contains(range.commonAncestorContainer)) return;
 
-    // Get the text container reference
-    if (!textRef.current) {
-      console.warn('Text container ref not available');
-      return;
-    }
+    console.log('🖱️ Mouse selection detected:', selectedText);
 
-    // Calculate character positions using DOM traversal
-    const { startPos, endPos } = calculateTextPosition(range, textRef.current);
+    // Get the full text content
+    const fullText = textRef.current.textContent || '';
     
-    if (startPos === -1 || endPos === -1) {
-      console.warn('Could not calculate text positions');
-      selection.removeAllRanges();
-      return;
-    }
+    // Find the start position in the plain text
+    const start = fullText.indexOf(selectedText);
+    if (start === -1) return;
+    
+    const end = start + selectedText.length;
 
-    console.log('📍 Calculated positions:', { startPos, endPos, selectedText });
-
-    // For eraser mode, remove overlapping annotations
+    // Handle eraser mode - remove overlapping annotations
     if (selectedMode === 'eraser') {
-      setAnnotations(prev => {
-        const filtered = prev.filter(annotation => {
-          const overlap = !(annotation.end <= startPos || annotation.start >= endPos);
-          if (overlap) {
-            console.log('🗑️ Removing overlapping annotation:', annotation);
-          }
-          return !overlap;
-        });
-        return filtered;
-      });
-      
+      setAnnotations(prev => prev.filter(annotation => 
+        !(annotation.start < end && annotation.end > start)
+      ));
       selection.removeAllRanges();
       playSound('select');
       return;
     }
 
-    // Create new annotation
+    // Create new annotation for other modes
     const newAnnotation: AnnotationData = {
-      id: `annotation-${Date.now()}-${Math.random()}`,
-      start: startPos,
-      end: endPos,
+      id: `mouse-${Date.now()}-${Math.random()}`,
+      start,
+      end,
       type: selectedMode as 'hot' | 'neutral' | 'flush',
       timestamp: Date.now(),
       intensity: selectedMode === 'hot' ? 100 : selectedMode === 'flush' ? 0 : 50
     };
 
-    console.log('✨ Creating annotation:', newAnnotation);
-
-    // Add the annotation
-    setAnnotations(prev => {
-      const updated = [...prev, newAnnotation];
-      console.log('📊 Total annotations:', updated.length);
-      return updated;
-    });
+    setAnnotations(prev => [...prev, newAnnotation]);
     
-    // Show comment modal for this range
+    // Show comment modal
     setActiveAnnotationForComment(newAnnotation.id);
     setCommentInputText('');
     setShowCommentModal(true);
     
-    // Clear selection
     selection.removeAllRanges();
     playSound('select');
-  }, [selectedMode, isDragging, playSound]);
+  }, [selectedMode, playSound]);
 
   // Helper function to calculate text positions from DOM range
   const calculateTextPosition = useCallback((range: Range, container: HTMLElement) => {
@@ -500,7 +477,7 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
   // Enhanced function to render text with range-based annotations
   const renderAnnotatedText = () => {
     if (annotations.length === 0) {
-      return <span className="select-text">{demoText}</span>;
+      return <span className="selectable-text">{demoText}</span>;
     }
 
     // Create a map of character positions to annotations
@@ -540,7 +517,7 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
             result.push(
               <motion.span
                 key={`annotation-${result.length}`}
-                className="inline-block px-1.5 py-0.5 mx-0.5 rounded-sm cursor-pointer transition-all duration-200 ease-out hover:scale-[1.01] relative select-text"
+                className="inline-block px-1.5 py-0.5 mx-0.5 rounded-sm cursor-pointer transition-all duration-200 ease-out hover:scale-[1.01] relative selectable-text"
                 style={{
                   background: style.bg,
                   border: `1px solid ${style.border}`,
@@ -561,7 +538,7 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
               </motion.span>
             );
           } else {
-            result.push(<span key={`text-${result.length}`} className="select-text">{currentText}</span>);
+            result.push(<span key={`text-${result.length}`} className="selectable-text">{currentText}</span>);
           }
         }
         
@@ -582,7 +559,7 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
         result.push(
           <motion.span
             key={`annotation-${result.length}`}
-            className="inline-block px-1.5 py-0.5 mx-0.5 rounded-sm cursor-pointer transition-all duration-200 ease-out hover:scale-[1.01] relative select-text"
+            className="inline-block px-1.5 py-0.5 mx-0.5 rounded-sm cursor-pointer transition-all duration-200 ease-out hover:scale-[1.01] relative selectable-text"
             style={{
               background: style.bg,
               border: `1px solid ${style.border}`,
@@ -603,7 +580,7 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
           </motion.span>
         );
       } else {
-        result.push(<span key={`text-${result.length}`} className="select-text">{currentText}</span>);
+        result.push(<span key={`text-${result.length}`} className="selectable-text">{currentText}</span>);
       }
     }
 
@@ -822,9 +799,7 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
                 `}
                 onMouseEnter={() => setIsInTextArea(true)}
                 onMouseLeave={() => setIsInTextArea(false)}
-                onMouseUp={handleTextSelection}
-                onSelect={handleTextSelection}
-                onSelectCapture={handleTextSelection}
+                onMouseUp={handleMouseSelection}
                 style={{ 
                   userSelect: 'text',
                   WebkitUserSelect: 'text',
