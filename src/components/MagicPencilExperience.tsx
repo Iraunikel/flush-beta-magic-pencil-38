@@ -80,6 +80,9 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
     lastSwingTime: 0 
   });
   const [undoStack, setUndoStack] = useState<AnnotationData[][]>([]);
+  const [showCommentModal, setShowCommentModal] = useState(false);
+  const [activeWordForComment, setActiveWordForComment] = useState<number | null>(null);
+  const [commentInputText, setCommentInputText] = useState('');
   
   // Motion values for advanced interactions
   const mouseX = useMotionValue(0);
@@ -185,39 +188,81 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
   const generateRefinedPrompt = useCallback(() => {
     if (annotations.length === 0) return '';
     
-    const hotTexts = annotations
-      .filter(a => a.type === 'hot')
-      .map(a => demoText.slice(a.start, a.end).trim())
-      .filter(text => text.length > 0);
+    const hotAnnotations = annotations.filter(a => a.type === 'hot');
+    const neutralAnnotations = annotations.filter(a => a.type === 'neutral');
+    const flushAnnotations = annotations.filter(a => a.type === 'flush');
     
-    const flushTexts = annotations
-      .filter(a => a.type === 'flush')
-      .map(a => demoText.slice(a.start, a.end).trim())
-      .filter(text => text.length > 0);
+    let prompt = 'Please analyze this AI response and improve it based on my feedback:\n\n';
     
-    const comments = annotations
-      .filter(a => a.comment && a.comment.trim())
-      .map(a => a.comment?.trim())
-      .filter(Boolean);
-    
-    let prompt = 'Refined AI instruction based on user feedback:\n\n';
-    
-    if (hotTexts.length > 0) {
-      prompt += `✨ EMPHASIZE & EXPAND:\n${hotTexts.map(text => `• "${text}"`).join('\n')}\n\n`;
+    if (hotAnnotations.length > 0) {
+      prompt += '🔥 EXPAND AND ENHANCE these parts (marked as HOT):\n';
+      hotAnnotations.forEach(annotation => {
+        const text = demoWords[annotation.wordIndex || 0] || demoText.slice(annotation.start, annotation.end).trim();
+        prompt += `- "${text}"${annotation.comment ? ` (${annotation.comment})` : ''}\n`;
+      });
+      prompt += '\n';
     }
     
-    if (flushTexts.length > 0) {
-      prompt += `🔥 REDUCE OR REMOVE:\n${flushTexts.map(text => `• "${text}"`).join('\n')}\n\n`;
+    if (neutralAnnotations.length > 0) {
+      prompt += '👍 KEEP THE SAME these parts (marked as NEUTRAL):\n';
+      neutralAnnotations.forEach(annotation => {
+        const text = demoWords[annotation.wordIndex || 0] || demoText.slice(annotation.start, annotation.end).trim();
+        prompt += `- "${text}"${annotation.comment ? ` (${annotation.comment})` : ''}\n`;
+      });
+      prompt += '\n';
     }
     
-    if (comments.length > 0) {
-      prompt += `💭 ADDITIONAL GUIDANCE:\n${comments.map(comment => `• ${comment}`).join('\n')}\n\n`;
+    if (flushAnnotations.length > 0) {
+      prompt += '🚽 REMOVE OR MINIMIZE these parts (marked as FLUSH):\n';
+      flushAnnotations.forEach(annotation => {
+        const text = demoWords[annotation.wordIndex || 0] || demoText.slice(annotation.start, annotation.end).trim();
+        prompt += `- "${text}"${annotation.comment ? ` (${annotation.comment})` : ''}\n`;
+      });
+      prompt += '\n';
     }
     
-    prompt += 'Apply these changes to create a more targeted and effective response.';
+    prompt += 'Please provide an improved version of the response that incorporates this feedback.';
     
     return prompt;
   }, [annotations]);
+
+  // Convert annotations to unified format for analytics
+  const unifiedAnnotations = React.useMemo(() => {
+    return annotations.map(annotation => ({
+      id: annotation.id,
+      type: 'magic-pencil' as const,
+      relevanceLevel: annotation.type as 'hot' | 'neutral' | 'flush',
+      text: demoWords[annotation.wordIndex || 0] || demoText.slice(annotation.start, annotation.end),
+      comment: annotation.comment || '',
+      timestamp: annotation.timestamp,
+      startIndex: annotation.start,
+      endIndex: annotation.end
+    }));
+  }, [annotations]);
+
+  // Handle comment submission
+  const handleCommentSubmit = useCallback(() => {
+    if (activeWordForComment === null) return;
+    
+    setAnnotations(prev => prev.map(annotation => 
+      annotation.wordIndex === activeWordForComment 
+        ? { ...annotation, comment: commentInputText }
+        : annotation
+    ));
+    
+    setShowCommentModal(false);
+    setActiveWordForComment(null);
+    setCommentInputText('');
+  }, [activeWordForComment, commentInputText]);
+
+  // Handle word click for adding comments
+  const handleWordClick = useCallback((wordIndex: number, word: string, annotation?: AnnotationData) => {
+    if (annotation && !isDragging) {
+      setActiveWordForComment(wordIndex);
+      setCommentInputText(annotation.comment || '');
+      setShowCommentModal(true);
+    }
+  }, [isDragging]);
 
   // Clear all annotations
   const clearAnnotations = useCallback(() => {
@@ -271,8 +316,6 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
           newMode = 'flush';
           break;
         case '4':
-        case 'e':
-        case 'E':
           newMode = 'eraser';
           break;
         case 'ArrowUp':
@@ -815,6 +858,9 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
                 // Handle annotation modes
                 if (!annotation) {
                   handleWordAnnotation(index, word, true);
+                } else {
+                  // If word is already annotated, open comment modal
+                  handleWordClick(index, word, annotation);
                 }
               }}
               whileHover={{
@@ -1191,18 +1237,26 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
                   <RefreshCw className="w-4 h-4" />
                   Undo
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={clearAnnotations}
-                  disabled={annotations.length === 0}
-                  className="w-full flex items-center gap-2"
-                >
-                  <X className="w-4 h-4" />
-                  Clear All
-                </Button>
-              </div>
-            </Card>
+                 <Button
+                   variant="outline"
+                   size="sm"
+                   onClick={clearAnnotations}
+                   disabled={annotations.length === 0}
+                   className="w-full flex items-center gap-2"
+                 >
+                   <X className="w-4 h-4" />
+                   Clear All
+                 </Button>
+                 <Button
+                   onClick={() => setShowRefinedPrompt(true)}
+                   disabled={annotations.length === 0}
+                   className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white flex items-center gap-2"
+                 >
+                   <Sparkles className="w-4 h-4" />
+                   Generate Refined Prompt
+                 </Button>
+               </div>
+             </Card>
 
             {/* Export Options */}
             {annotations.length > 0 && (
@@ -1260,16 +1314,19 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
 
       {/* Comment Modal */}
       <AnimatePresence>
-        {showComment && selectedText && (
+        {showCommentModal && activeWordForComment !== null && (
           <motion.div
             className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={() => setShowComment(false)}
+            onClick={() => {
+              setShowCommentModal(false);
+              setActiveWordForComment(null);
+              setCommentInputText('');
+            }}
           >
             <motion.div
-              ref={commentModalRef}
               className="bg-background p-6 rounded-2xl border border-primary/20 max-w-md w-full mx-4 shadow-2xl"
               initial={{ scale: 0.8, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
@@ -1281,7 +1338,11 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setShowComment(false)}
+                  onClick={() => {
+                    setShowCommentModal(false);
+                    setActiveWordForComment(null);
+                    setCommentInputText('');
+                  }}
                   className="p-1"
                 >
                   <X className="w-4 h-4" />
@@ -1289,30 +1350,21 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
               </div>
               
               <div className="mb-4 p-3 bg-muted/30 rounded-lg text-sm text-muted-foreground">
-                "{demoText.slice(selectedText.start, selectedText.end)}"
+                "{demoWords[activeWordForComment]}"
               </div>
               
               <Textarea
-                value={commentText}
-                onChange={(e) => setCommentText(e.target.value)}
+                value={commentInputText}
+                onChange={(e) => setCommentInputText(e.target.value)}
                 className="mb-4"
                 rows={3}
-                placeholder="Add your thoughts about this selection..."
+                placeholder="Add your thoughts about this word..."
+                autoFocus
               />
               
               <div className="flex gap-2">
                 <Button
-                  onClick={() => {
-                    if (selectedText) {
-                      setAnnotations(prev => prev.map(ann => 
-                        ann.start === selectedText.start && ann.end === selectedText.end
-                          ? { ...ann, comment: commentText }
-                          : ann
-                      ));
-                    }
-                    setCommentText('');
-                    setShowComment(false);
-                  }}
+                  onClick={handleCommentSubmit}
                   className="flex-1"
                 >
                   <MessageCircle className="w-4 h-4 mr-2" />
@@ -1320,7 +1372,11 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
                 </Button>
                 <Button 
                   variant="outline" 
-                  onClick={() => setShowComment(false)}
+                  onClick={() => {
+                    setShowCommentModal(false);
+                    setActiveWordForComment(null);
+                    setCommentInputText('');
+                  }}
                 >
                   Cancel
                 </Button>
