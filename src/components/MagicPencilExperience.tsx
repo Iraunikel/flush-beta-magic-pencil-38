@@ -252,84 +252,62 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
     }
   }, [annotations, undoStack, playSound]);
 
-  // Fixed gesture detection - only trigger on fast intentional swipes
-  const detectGesture = useCallback((velocityY: number) => {
-    const now = Date.now();
-    const threshold = 20; // Much higher threshold for intentional swipes only
-    
-    if (Math.abs(velocityY) > threshold) {
-      const newDirection = velocityY < 0 ? 'up' : 'down';
+  // Keyboard mode switching for reliable desktop interaction
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Only activate when in text area and started
+      if (!isInTextArea || !hasStarted) return;
       
-      setGestureDetection(prev => {
-        const timeDiff = now - prev.lastSwingTime;
-        
-        // Prevent rapid consecutive gestures (longer cooldown)
-        if (timeDiff < 800) {
-          return prev;
-        }
-        
-        let newMode: 'hot' | 'neutral' | 'flush' | 'eraser' = selectedMode;
-        
-        // Explicit mode transitions based on priority order: Hot (3) → Neutral (2) → Flush (1)
-        if (newDirection === 'down') {
-          // Down swipe = DECREASE priority (step down)
-          console.log(`Intentional down swipe detected from ${selectedMode}, velocity: ${velocityY}`);
-          switch (selectedMode) {
-            case 'hot':
-              newMode = 'neutral';
-              break;
-            case 'neutral': 
-              newMode = 'flush';
-              break;
-            case 'flush':
-              // Stay at flush (lowest priority)
-              newMode = 'flush';
-              break;
-            case 'eraser':
-              newMode = 'flush';
-              break;
-          }
-        } else {
-          // Up swipe = INCREASE priority (step up)
-          console.log(`Intentional up swipe detected from ${selectedMode}, velocity: ${velocityY}`);
-          switch (selectedMode) {
-            case 'flush':
-              newMode = 'neutral';
-              break;
-            case 'neutral':
-              newMode = 'hot';
-              break;
-            case 'hot':
-              // Stay at hot (highest priority)
-              newMode = 'hot';
-              break;
-            case 'eraser':
-              newMode = 'hot';
-              break;
-          }
-        }
-        
-        if (newMode !== selectedMode) {
-          console.log(`Mode switch: ${selectedMode} → ${newMode} via ${newDirection}-swipe`);
-          setSelectedMode(newMode);
-          playSound('complete');
-          
-          // Visual feedback
-          const indicator = `.mode-indicator-${newMode}`;
-          gsap.to(indicator, { scale: 1.6, duration: 0.2, yoyo: true, repeat: 1 });
-        } else {
-          console.log(`No mode change needed - already at ${newDirection === 'down' ? 'lowest' : 'highest'} priority`);
-        }
-        
-        return {
-          velocityY,
-          direction: newDirection,
-          swingCount: 1,
-          lastSwingTime: now
-        };
-      });
-    }
-  }, [playSound, selectedMode]);
+      let newMode = selectedMode;
+      
+      switch (e.key) {
+        case '1':
+          newMode = 'hot';
+          break;
+        case '2':
+          newMode = 'neutral';
+          break;
+        case '3':
+          newMode = 'flush';
+          break;
+        case '4':
+        case 'e':
+        case 'E':
+          newMode = 'eraser';
+          break;
+        case 'ArrowUp':
+          // Cycle up: flush → neutral → hot → eraser → flush
+          newMode = selectedMode === 'flush' ? 'neutral' : 
+                   selectedMode === 'neutral' ? 'hot' : 
+                   selectedMode === 'hot' ? 'eraser' : 'flush';
+          break;
+        case 'ArrowDown':
+          // Cycle down: hot → neutral → flush → eraser → hot
+          newMode = selectedMode === 'hot' ? 'neutral' : 
+                   selectedMode === 'neutral' ? 'flush' : 
+                   selectedMode === 'flush' ? 'eraser' : 'hot';
+          break;
+        default:
+          return;
+      }
+      
+      if (newMode !== selectedMode) {
+        console.log(`Mode switch: ${selectedMode} → ${newMode} via keyboard`);
+        setSelectedMode(newMode);
+        playSound('select');
+        e.preventDefault();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [selectedMode, isInTextArea, hasStarted, playSound]);
+
+  // Simplified gesture detection - disabled for reliable interaction
+  const detectGesture = useCallback((velocityY: number) => {
+    // Gesture detection disabled in favor of keyboard shortcuts
+    return;
+  }, []);
 
   // Advanced GSAP animations with particle system
   useEffect(() => {
@@ -412,17 +390,7 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
       const y = e.clientY;
       const now = Date.now();
       
-      // Calculate velocity for gesture detection - only when actively dragging/interacting
-      if (isInTextArea && hasStarted && isDragging) {
-        const deltaY = y - lastY;
-        const deltaTime = now - lastTime;
-        const velocityY = deltaTime > 0 ? deltaY / deltaTime * 16.67 : 0; // Normalize to 60fps
-        
-        // Only detect gestures on fast intentional movements
-        if (Math.abs(velocityY) > 15) {
-          detectGesture(velocityY);
-        }
-      }
+      // Gesture detection disabled - using reliable keyboard shortcuts instead
       
       setCursorPosition({ x, y });
       mouseX.set(x);
@@ -631,13 +599,31 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
         });
         playSound('select');
         
-        // Force clear all styles immediately
+        // Force clear all styles immediately - both inline and CSS classes
         const wordElement = document.querySelector(`.word-${wordIndex}`) as HTMLElement;
         if (wordElement) {
-          wordElement.style.background = 'transparent';
-          wordElement.style.border = '1px solid transparent';
-          wordElement.style.boxShadow = 'none';
+          // Clear all inline styles that might have been applied
+          wordElement.style.background = '';
+          wordElement.style.border = '';
+          wordElement.style.boxShadow = '';
           wordElement.style.color = '';
+          wordElement.style.transform = '';
+          wordElement.style.scale = '';
+          wordElement.style.opacity = '';
+          
+          // Kill any ongoing GSAP animations on this element
+          gsap.killTweensOf(wordElement);
+          
+          // Force reset to default state
+          gsap.set(wordElement, {
+            background: 'transparent',
+            border: '1px solid transparent', 
+            boxShadow: 'none',
+            color: 'inherit',
+            scale: 1,
+            rotation: 0,
+            clearProps: "all"
+          });
         }
         
         // Enhanced visual feedback for erasing
@@ -1049,6 +1035,16 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
                   </motion.button>
                 ))}
               </div>
+              
+              {/* Keyboard shortcuts hint */}
+              {hasStarted && (
+                <div className="mt-3 text-xs text-muted-foreground text-center">
+                  <div className="flex items-center justify-center gap-4">
+                    <span>Use keys: <kbd className="px-1 py-0.5 bg-muted rounded text-xs">1</kbd>Hot <kbd className="px-1 py-0.5 bg-muted rounded text-xs">2</kbd>Neutral <kbd className="px-1 py-0.5 bg-muted rounded text-xs">3</kbd>Flush <kbd className="px-1 py-0.5 bg-muted rounded text-xs">E</kbd>Eraser</span>
+                    <span>or <kbd className="px-1 py-0.5 bg-muted rounded text-xs">↑↓</kbd> to cycle modes</span>
+                  </div>
+                </div>
+              )}
             </Card>
 
             {/* Interactive Text Area */}
