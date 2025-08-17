@@ -33,10 +33,6 @@ const CombinedAnnotationInterface: React.FC<CombinedAnnotationInterfaceProps> = 
     setTextAnnotations(newAnnotations);
   };
 
-  const handleMagicPencilAnnotationsChange = (newAnnotations: any[]) => {
-    setMagicPencilAnnotations(newAnnotations);
-  };
-
   const handleRefinePrompt = () => {
     const element = document.getElementById('prompt-refinement');
     if (element) {
@@ -126,12 +122,7 @@ const CombinedAnnotationInterface: React.FC<CombinedAnnotationInterfaceProps> = 
           
           <TabsContent value="ux" className="mt-6 p-0">
             <div className="-mx-6 -mb-6">
-            <MagicPencilExperience 
-              content={content}
-              onContentChange={onContentChange}
-              onAnnotationsChange={handleMagicPencilAnnotationsChange}
-              onRefinePrompt={() => console.log('Refine prompt triggered from Magic Pencil')}
-            />
+            <MagicPencilExperience onStartAnnotating={handleStartAnnotating} />
             </div>
           </TabsContent>
           
