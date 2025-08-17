@@ -252,11 +252,10 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
     }
   }, [annotations, undoStack, playSound]);
 
-  // Fixed priority-based mode switching: Hot > Neutral > Flush (no eraser in cycle)
-  // Simple single swipe detection for reliable mode switching
+  // Fixed gesture detection - only trigger on fast intentional swipes
   const detectGesture = useCallback((velocityY: number) => {
     const now = Date.now();
-    const threshold = 8; // More responsive threshold
+    const threshold = 20; // Much higher threshold for intentional swipes only
     
     if (Math.abs(velocityY) > threshold) {
       const newDirection = velocityY < 0 ? 'up' : 'down';
@@ -264,8 +263,8 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
       setGestureDetection(prev => {
         const timeDiff = now - prev.lastSwingTime;
         
-        // Prevent rapid consecutive gestures (cooldown)
-        if (timeDiff < 400) {
+        // Prevent rapid consecutive gestures (longer cooldown)
+        if (timeDiff < 800) {
           return prev;
         }
         
@@ -274,7 +273,7 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
         // Explicit mode transitions based on priority order: Hot (3) → Neutral (2) → Flush (1)
         if (newDirection === 'down') {
           // Down swipe = DECREASE priority (step down)
-          console.log(`Down swipe detected from ${selectedMode}`);
+          console.log(`Intentional down swipe detected from ${selectedMode}, velocity: ${velocityY}`);
           switch (selectedMode) {
             case 'hot':
               newMode = 'neutral';
@@ -292,7 +291,7 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
           }
         } else {
           // Up swipe = INCREASE priority (step up)
-          console.log(`Up swipe detected from ${selectedMode}`);
+          console.log(`Intentional up swipe detected from ${selectedMode}, velocity: ${velocityY}`);
           switch (selectedMode) {
             case 'flush':
               newMode = 'neutral';
@@ -413,13 +412,16 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
       const y = e.clientY;
       const now = Date.now();
       
-      // Calculate velocity for gesture detection
-      if (isInTextArea && hasStarted) {
+      // Calculate velocity for gesture detection - only when actively dragging/interacting
+      if (isInTextArea && hasStarted && isDragging) {
         const deltaY = y - lastY;
         const deltaTime = now - lastTime;
         const velocityY = deltaTime > 0 ? deltaY / deltaTime * 16.67 : 0; // Normalize to 60fps
         
-        detectGesture(velocityY);
+        // Only detect gestures on fast intentional movements
+        if (Math.abs(velocityY) > 15) {
+          detectGesture(velocityY);
+        }
       }
       
       setCursorPosition({ x, y });
