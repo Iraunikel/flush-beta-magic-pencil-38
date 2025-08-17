@@ -242,21 +242,20 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
     }
   }, [annotations, undoStack, playSound]);
 
-  // Enhanced gesture-based mode switching with proper logic
+  // Fixed priority-based mode switching: Hot > Neutral > Flush > Eraser
   const detectGesture = useCallback((velocityY: number) => {
     const now = Date.now();
-    const threshold = 8; // Sensitive threshold for gesture detection
+    const threshold = 6; // Slightly more sensitive
     
     if (Math.abs(velocityY) > threshold) {
       const newDirection = velocityY < 0 ? 'up' : 'down';
       
       setGestureDetection(prev => {
-        // For a fast double swing, we want direction change within a short window
         const isDirectionChange = prev.direction !== 'none' && prev.direction !== newDirection;
         const timeDiff = now - prev.lastSwingTime;
         
         // Reset if too much time passed
-        if (timeDiff > 1200) {
+        if (timeDiff > 1000) {
           return {
             velocityY,
             direction: newDirection,
@@ -265,46 +264,48 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
           };
         }
         
-        // Count swings and check for rapid direction changes (double swing)
+        // Count direction changes for double swipe detection
         const newSwingCount = isDirectionChange ? prev.swingCount + 1 : prev.swingCount;
         
-        // Double swing detected: rapid up-down or down-up motion
-        if (newSwingCount >= 2 && timeDiff < 600) {
+        // Double swipe detected: implement priority-based switching
+        if (newSwingCount >= 2 && timeDiff < 500) {
           let newMode: 'hot' | 'neutral' | 'flush' | 'eraser' = selectedMode;
           
-          // Determine direction preference based on last movement
-          const preferUp = newDirection === 'up';
+          // Priority levels: Hot (3) > Neutral (2) > Flush (1) > Eraser (0)
+          const modePriority = {
+            'hot': 3,
+            'neutral': 2, 
+            'flush': 1,
+            'eraser': 0
+          };
           
-          if (selectedMode === 'neutral') {
-            // From neutral: up goes to hot, down goes to flush
-            newMode = preferUp ? 'hot' : 'flush';
-          } else if (selectedMode === 'hot') {
-            // From hot: first step always to neutral, second could go to flush
-            newMode = 'neutral';
-          } else if (selectedMode === 'flush') {
-            // From flush: first step always to neutral, second could go to hot
-            newMode = 'neutral';
-          } else if (selectedMode === 'eraser') {
-            // From eraser: always to neutral first
-            newMode = 'neutral';
+          const currentPriority = modePriority[selectedMode];
+          
+          if (newDirection === 'up') {
+            // Up swipe = Higher priority
+            if (currentPriority < 3) {
+              const modes = ['eraser', 'flush', 'neutral', 'hot'];
+              newMode = modes[currentPriority + 1] as typeof newMode;
+            }
+          } else {
+            // Down swipe = Lower priority  
+            if (currentPriority > 0) {
+              const modes = ['eraser', 'flush', 'neutral', 'hot'];
+              newMode = modes[currentPriority - 1] as typeof newMode;
+            }
           }
           
           if (newMode !== selectedMode) {
+            console.log(`Priority switch: ${selectedMode} (${currentPriority}) → ${newMode} (${modePriority[newMode]}) via ${newDirection}-swipe`);
             setSelectedMode(newMode);
             playSound('complete');
             
-            // Add debugging
-            console.log(`Mode switched: ${selectedMode} → ${newMode} (direction: ${newDirection}, swings: ${newSwingCount})`);
-            
-            // Visual feedback based on new mode
-            const indicator = newMode === 'hot' ? '.mode-indicator-hot' : 
-                             newMode === 'flush' ? '.mode-indicator-flush' : 
-                             newMode === 'eraser' ? '.mode-indicator-eraser' :
-                             '.mode-indicator-neutral';
-            gsap.to(indicator, { scale: 1.4, duration: 0.3, yoyo: true, repeat: 1 });
+            // Visual feedback
+            const indicator = `.mode-indicator-${newMode}`;
+            gsap.to(indicator, { scale: 1.6, duration: 0.2, yoyo: true, repeat: 1 });
           }
           
-          // Reset after gesture
+          // Reset after successful gesture
           return {
             velocityY: 0,
             direction: 'none',
@@ -602,25 +603,45 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
   };
 
 
-  // Enhanced word annotation for auto-selection
+  // Enhanced word annotation for auto-selection with improved eraser
   const handleWordAnnotation = useCallback((wordIndex: number, word: string, isClick = false) => {
+    console.log(`Annotation attempt: word=${word}, index=${wordIndex}, mode=${selectedMode}, isClick=${isClick}`);
+    
     // Handle eraser mode - remove existing annotation
     if (selectedMode === 'eraser') {
       const existingAnnotation = annotations.find(a => a.wordIndex === wordIndex);
+      console.log('Eraser mode - existing annotation:', existingAnnotation);
+      
       if (existingAnnotation) {
         setUndoStack(prev => [...prev, annotations]);
-        setAnnotations(prev => prev.filter(a => a.wordIndex !== wordIndex));
+        setAnnotations(prev => {
+          const filtered = prev.filter(a => a.wordIndex !== wordIndex);
+          console.log('After erasing:', filtered.length, 'annotations remain');
+          return filtered;
+        });
         playSound('select');
         
-        // Visual feedback for erasing
-        gsap.to(`.word-${wordIndex}`, {
-          scale: 0.8,
-          opacity: 0.5,
-          duration: 0.2,
-          yoyo: true,
-          repeat: 1,
-          ease: "power2.inOut"
-        });
+        // Enhanced visual feedback for erasing
+        gsap.timeline()
+          .to(`.word-${wordIndex}`, {
+            scale: 0.6,
+            opacity: 0.3,
+            rotateZ: -10,
+            duration: 0.3,
+            ease: "power2.out"
+          })
+          .to(`.word-${wordIndex}`, {
+            scale: 1,
+            opacity: 1,
+            rotateZ: 0,
+            background: 'rgba(0, 0, 0, 0)',
+            border: '1px solid rgba(0, 0, 0, 0)',
+            boxShadow: 'none',
+            duration: 0.4,
+            ease: "elastic.out(1, 0.8)"
+          });
+      } else {
+        console.log('No annotation to erase at this word');
       }
       return;
     }
@@ -811,7 +832,7 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
                     <div className="bg-background/90 backdrop-blur-sm border border-primary/20 rounded-lg px-3 py-2 text-xs font-medium whitespace-nowrap shadow-lg">
                       <div className="flex items-center gap-1">
                         {React.createElement(modeStyles[selectedMode].icon, { className: "w-3 h-3" })}
-                        Paint as {selectedMode}
+                        {selectedMode === 'eraser' ? 'Erase annotation' : `Paint as ${selectedMode}`}
                       </div>
                       <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-primary/20" />
                     </div>
@@ -915,29 +936,30 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
               style={{ filter: modeStyles[selectedMode].sparkle }}
             />
             
-            {/* Enhanced palette with gesture feedback */}
-            <div className="absolute -top-8 -left-2 flex gap-1 opacity-80">
+            {/* Enhanced palette with gesture feedback - Priority order display */}
+            <div className="absolute -top-8 -left-4 flex gap-1 opacity-80">
               <div 
                 className={`mode-indicator-hot w-2 h-2 rounded-full border transition-all duration-200 ${selectedMode === 'hot' ? 'bg-red-400 border-red-400 shadow-lg' : 'bg-red-400/30 border-red-400/50'}`}
-                style={{
-                  transform: gestureDetection.direction === 'up' && gestureDetection.swingCount > 0 ? 'translateY(-3px) scale(1.4)' : 'none'
-                }}
+                title="Hot (Priority 3)"
               />
               <div 
                 className={`mode-indicator-neutral w-2 h-2 rounded-full border transition-all duration-200 ${selectedMode === 'neutral' ? 'bg-slate-400 border-slate-400 shadow-lg' : 'bg-slate-400/30 border-slate-400/50'}`}
+                title="Neutral (Priority 2)"
               />
               <div 
                 className={`mode-indicator-flush w-2 h-2 rounded-full border transition-all duration-200 ${selectedMode === 'flush' ? 'bg-blue-400 border-blue-400 shadow-lg' : 'bg-blue-400/30 border-blue-400/50'}`}
-                style={{
-                  transform: gestureDetection.direction === 'down' && gestureDetection.swingCount > 0 ? 'translateY(3px) scale(1.4)' : 'none'
-                }}
+                title="Flush (Priority 1)"
+              />
+              <div 
+                className={`mode-indicator-eraser w-2 h-2 rounded-full border transition-all duration-200 ${selectedMode === 'eraser' ? 'bg-red-600 border-red-600 shadow-lg' : 'bg-red-600/30 border-red-600/50'}`}
+                title="Eraser (Priority 0)"
               />
             </div>
             
-            {/* Gesture hint */}
+            {/* Updated gesture hint showing priority */}
             {gestureDetection.swingCount > 0 && (
-              <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 text-xs bg-background/90 px-2 py-1 rounded-full border">
-                {gestureDetection.direction === 'up' ? '↑ Hot' : '↓ Flush'}
+              <div className="absolute -top-14 left-1/2 transform -translate-x-1/2 text-xs bg-background/90 px-2 py-1 rounded-full border whitespace-nowrap">
+                {gestureDetection.direction === 'up' ? '↑ Higher Priority' : '↓ Lower Priority'}
               </div>
             )}
             
@@ -1041,7 +1063,7 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
                           Click to begin annotation
                         </p>
                         <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground/70">
-                          <span>💡 Pro tip: Double swipe ↑ for Hot, ↓ for Flush</span>
+                          <span>💡 Pro tip: Double swipe ↑ higher priority, ↓ lower priority</span>
                         </div>
                       </motion.div>
                     </div>
