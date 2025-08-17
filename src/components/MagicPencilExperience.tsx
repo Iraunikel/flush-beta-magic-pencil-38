@@ -210,17 +210,17 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
     return prompt;
   }, [annotations]);
 
-  // Enhanced gesture-based mode switching with momentum
+  // Enhanced gesture-based mode switching with proper logic
   const detectGesture = useCallback((velocityY: number) => {
     const now = Date.now();
-    const threshold = 8; // Lowered threshold for more sensitive detection
+    const threshold = 6; // Lowered threshold for more sensitive detection
     
     if (Math.abs(velocityY) > threshold) {
       const newDirection = velocityY < 0 ? 'up' : 'down';
       
       setGestureDetection(prev => {
-        // Reset if direction changed or too much time passed (extended window)
-        if (prev.direction !== newDirection || now - prev.lastSwingTime > 1200) {
+        // Reset if direction changed or too much time passed
+        if (prev.direction !== newDirection || now - prev.lastSwingTime > 1000) {
           return {
             velocityY,
             direction: newDirection,
@@ -231,24 +231,42 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
         
         const newSwingCount = prev.swingCount + 1;
         
-        // Double swing detection with momentum
-        if (newSwingCount === 2 && now - prev.lastSwingTime < 800) {
-          // Double swing up = Hot mode
+        // Double swing detection with proper mode transition logic
+        if (newSwingCount === 2 && now - prev.lastSwingTime < 600) {
+          let newMode: 'hot' | 'neutral' | 'flush' = selectedMode;
+          
           if (newDirection === 'up') {
-            setSelectedMode('hot');
-            playSound('complete');
-            // Visual feedback
-            gsap.to('.mode-indicator-hot', { scale: 1.3, duration: 0.3, yoyo: true, repeat: 1 });
-          }
-          // Double swing down = Flush mode  
-          else if (newDirection === 'down') {
-            setSelectedMode('flush');
-            playSound('complete');
-            // Visual feedback
-            gsap.to('.mode-indicator-flush', { scale: 1.3, duration: 0.3, yoyo: true, repeat: 1 });
+            // Double swing up logic
+            if (selectedMode === 'flush') {
+              newMode = 'neutral'; // First swing: flush → neutral
+            } else if (selectedMode === 'neutral') {
+              newMode = 'hot'; // Second swing: neutral → hot
+            } else if (selectedMode === 'hot') {
+              newMode = 'neutral'; // From hot, first swing goes to neutral
+            }
+          } else if (newDirection === 'down') {
+            // Double swing down logic
+            if (selectedMode === 'hot') {
+              newMode = 'neutral'; // First swing: hot → neutral
+            } else if (selectedMode === 'neutral') {
+              newMode = 'flush'; // Second swing: neutral → flush
+            } else if (selectedMode === 'flush') {
+              newMode = 'neutral'; // From flush, first swing goes to neutral
+            }
           }
           
-          // Reset after successful gesture
+          if (newMode !== selectedMode) {
+            setSelectedMode(newMode);
+            playSound('complete');
+            
+            // Visual feedback based on new mode
+            const indicator = newMode === 'hot' ? '.mode-indicator-hot' : 
+                             newMode === 'flush' ? '.mode-indicator-flush' : 
+                             '.mode-indicator-neutral';
+            gsap.to(indicator, { scale: 1.4, duration: 0.3, yoyo: true, repeat: 1 });
+          }
+          
+          // Reset after gesture
           return {
             velocityY: 0,
             direction: 'none',
@@ -265,17 +283,7 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
         };
       });
     }
-    
-    // Auto-reset if no movement detected
-    setTimeout(() => {
-      setGestureDetection(prev => {
-        if (now - prev.lastSwingTime > 1500) {
-          return { velocityY: 0, direction: 'none', swingCount: 0, lastSwingTime: 0 };
-        }
-        return prev;
-      });
-    }, 1500);
-  }, [playSound]);
+  }, [playSound, selectedMode]);
 
   // Advanced GSAP animations with particle system
   useEffect(() => {
@@ -458,6 +466,21 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
         setHasStarted(true);
         setAutoSelectEnabled(true);
         document.body.style.cursor = 'none';
+      } else if (hasStarted) {
+        // Toggle between Magic Pencil mode and standard cursor mode
+        setAutoSelectEnabled(prev => {
+          const newEnabled = !prev;
+          document.body.style.cursor = newEnabled ? 'none' : 'auto';
+          
+          // Visual feedback
+          gsap.to('.text-area-border', { 
+            borderColor: newEnabled ? 'rgba(var(--primary), 0.4)' : 'rgba(var(--primary), 0.2)', 
+            boxShadow: newEnabled ? '0 0 20px rgba(var(--primary), 0.2)' : 'none',
+            duration: 0.3 
+          });
+          
+          return newEnabled;
+        });
       }
     };
 
@@ -698,7 +721,7 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
                   return;
                 }
                 
-                if (!annotation) {
+                if (!annotation && autoSelectEnabled) {
                   handleWordAnnotation(index, word, true);
                   // Brief pause in auto-select after manual click
                   setAutoSelectEnabled(false);
@@ -841,7 +864,7 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
                 }}
               />
               <div 
-                className={`w-2 h-2 rounded-full border transition-all duration-200 ${selectedMode === 'neutral' ? 'bg-slate-400 border-slate-400 shadow-lg' : 'bg-slate-400/30 border-slate-400/50'}`}
+                className={`mode-indicator-neutral w-2 h-2 rounded-full border transition-all duration-200 ${selectedMode === 'neutral' ? 'bg-slate-400 border-slate-400 shadow-lg' : 'bg-slate-400/30 border-slate-400/50'}`}
               />
               <div 
                 className={`mode-indicator-flush w-2 h-2 rounded-full border transition-all duration-200 ${selectedMode === 'flush' ? 'bg-blue-400 border-blue-400 shadow-lg' : 'bg-blue-400/30 border-blue-400/50'}`}
