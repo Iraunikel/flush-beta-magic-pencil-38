@@ -210,17 +210,17 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
     return prompt;
   }, [annotations]);
 
-  // Gesture-based mode switching
+  // Enhanced gesture-based mode switching with momentum
   const detectGesture = useCallback((velocityY: number) => {
     const now = Date.now();
-    const threshold = 15; // Velocity threshold for gesture detection
+    const threshold = 8; // Lowered threshold for more sensitive detection
     
     if (Math.abs(velocityY) > threshold) {
       const newDirection = velocityY < 0 ? 'up' : 'down';
       
       setGestureDetection(prev => {
-        // Reset if direction changed or too much time passed
-        if (prev.direction !== newDirection || now - prev.lastSwingTime > 800) {
+        // Reset if direction changed or too much time passed (extended window)
+        if (prev.direction !== newDirection || now - prev.lastSwingTime > 1200) {
           return {
             velocityY,
             direction: newDirection,
@@ -231,17 +231,21 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
         
         const newSwingCount = prev.swingCount + 1;
         
-        // Double swing detection
-        if (newSwingCount === 2 && now - prev.lastSwingTime < 600) {
+        // Double swing detection with momentum
+        if (newSwingCount === 2 && now - prev.lastSwingTime < 800) {
           // Double swing up = Hot mode
           if (newDirection === 'up') {
             setSelectedMode('hot');
             playSound('complete');
+            // Visual feedback
+            gsap.to('.mode-indicator-hot', { scale: 1.3, duration: 0.3, yoyo: true, repeat: 1 });
           }
           // Double swing down = Flush mode  
           else if (newDirection === 'down') {
             setSelectedMode('flush');
             playSound('complete');
+            // Visual feedback
+            gsap.to('.mode-indicator-flush', { scale: 1.3, duration: 0.3, yoyo: true, repeat: 1 });
           }
           
           // Reset after successful gesture
@@ -261,6 +265,16 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
         };
       });
     }
+    
+    // Auto-reset if no movement detected
+    setTimeout(() => {
+      setGestureDetection(prev => {
+        if (now - prev.lastSwingTime > 1500) {
+          return { velocityY: 0, direction: 'none', swingCount: 0, lastSwingTime: 0 };
+        }
+        return prev;
+      });
+    }, 1500);
   }, [playSound]);
 
   // Advanced GSAP animations with particle system
@@ -416,6 +430,12 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
       if (hasStarted && !showBanner) {
         document.body.style.cursor = 'none';
         setAutoSelectEnabled(true);
+        // Visual feedback for entering auto-select mode
+        gsap.to('.text-area-border', { 
+          borderColor: 'rgba(var(--primary), 0.4)', 
+          boxShadow: '0 0 20px rgba(var(--primary), 0.2)',
+          duration: 0.3 
+        });
       }
     };
 
@@ -423,6 +443,13 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
       setIsInTextArea(false);
       document.body.style.cursor = 'auto';
       setAutoSelectEnabled(false);
+      setHoveredWordIndex(null);
+      // Reset border
+      gsap.to('.text-area-border', { 
+        borderColor: 'rgba(var(--primary), 0.2)', 
+        boxShadow: 'none',
+        duration: 0.3 
+      });
     };
 
     const handleClick = () => {
@@ -641,13 +668,9 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
                 if (!annotation) {
                   playSound('hover');
                   
-                  // Auto-select after brief delay when in auto mode
+                  // Immediate auto-select when enabled
                   if (autoSelectEnabled && hasStarted && !showBanner) {
-                    setTimeout(() => {
-                      if (hoveredWordIndex === index && !annotations.some(a => a.wordIndex === index)) {
-                        handleWordAnnotation(index, word);
-                      }
-                    }, 200);
+                    handleWordAnnotation(index, word);
                   }
                 }
                 
@@ -672,11 +695,15 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
                   setShowBanner(false);
                   setHasStarted(true);
                   setAutoSelectEnabled(true);
+                  return;
                 }
-                handleWordAnnotation(index, word, true);
-                // Click toggles auto-select off temporarily
-                setAutoSelectEnabled(false);
-                setTimeout(() => setAutoSelectEnabled(true), 1000);
+                
+                if (!annotation) {
+                  handleWordAnnotation(index, word, true);
+                  // Brief pause in auto-select after manual click
+                  setAutoSelectEnabled(false);
+                  setTimeout(() => setAutoSelectEnabled(true), 800);
+                }
               }}
               whileHover={{
                 y: -2,
@@ -808,18 +835,18 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
             {/* Enhanced palette with gesture feedback */}
             <div className="absolute -top-8 -left-2 flex gap-1 opacity-80">
               <div 
-                className={`w-2 h-2 rounded-full border ${selectedMode === 'hot' ? 'bg-red-400 border-red-400 shadow-lg' : 'bg-red-400/30 border-red-400/50'}`}
+                className={`mode-indicator-hot w-2 h-2 rounded-full border transition-all duration-200 ${selectedMode === 'hot' ? 'bg-red-400 border-red-400 shadow-lg' : 'bg-red-400/30 border-red-400/50'}`}
                 style={{
-                  transform: gestureDetection.direction === 'up' && gestureDetection.swingCount > 0 ? 'translateY(-2px) scale(1.2)' : 'none'
+                  transform: gestureDetection.direction === 'up' && gestureDetection.swingCount > 0 ? 'translateY(-3px) scale(1.4)' : 'none'
                 }}
               />
               <div 
-                className={`w-2 h-2 rounded-full border ${selectedMode === 'neutral' ? 'bg-slate-400 border-slate-400 shadow-lg' : 'bg-slate-400/30 border-slate-400/50'}`}
+                className={`w-2 h-2 rounded-full border transition-all duration-200 ${selectedMode === 'neutral' ? 'bg-slate-400 border-slate-400 shadow-lg' : 'bg-slate-400/30 border-slate-400/50'}`}
               />
               <div 
-                className={`w-2 h-2 rounded-full border ${selectedMode === 'flush' ? 'bg-blue-400 border-blue-400 shadow-lg' : 'bg-blue-400/30 border-blue-400/50'}`}
+                className={`mode-indicator-flush w-2 h-2 rounded-full border transition-all duration-200 ${selectedMode === 'flush' ? 'bg-blue-400 border-blue-400 shadow-lg' : 'bg-blue-400/30 border-blue-400/50'}`}
                 style={{
-                  transform: gestureDetection.direction === 'down' && gestureDetection.swingCount > 0 ? 'translateY(2px) scale(1.2)' : 'none'
+                  transform: gestureDetection.direction === 'down' && gestureDetection.swingCount > 0 ? 'translateY(3px) scale(1.4)' : 'none'
                 }}
               />
             </div>
@@ -897,7 +924,7 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
             </Card>
 
             {/* Interactive Text Area */}
-            <Card className="p-6 bg-gradient-to-br from-background via-primary/3 to-accent/3 border-primary/20 min-h-[400px] relative">
+            <Card className="text-area-border p-6 bg-gradient-to-br from-background via-primary/3 to-accent/3 border-primary/20 min-h-[400px] relative transition-all duration-300">
               {/* Enhanced Banner with blur background */}
               <AnimatePresence>
                 {showBanner && (
