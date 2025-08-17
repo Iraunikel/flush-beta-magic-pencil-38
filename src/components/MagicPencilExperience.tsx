@@ -930,7 +930,44 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
   const refinedPrompt = generateRefinedPrompt();
 
   return (
-    <section ref={containerRef} className="py-8 px-6 relative">
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="border-b bg-card/50 backdrop-blur-sm">
+        <div className="container mx-auto px-6 py-4">
+          {/* Brand */}
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center">
+                <Zap className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-foreground">Magic Pencil</h1>
+                <p className="text-sm text-muted-foreground">Paint your thoughts, shape AI responses</p>
+              </div>
+            </div>
+            
+            {annotations.length > 0 && (
+              <Badge variant="secondary" className="text-sm">
+                {annotations.length} annotation{annotations.length !== 1 ? 's' : ''}
+              </Badge>
+            )}
+          </div>
+
+          {/* Navigation */}
+          <nav className="flex gap-1">
+            <Button
+              variant="default"
+              size="sm"
+              className="h-auto p-3 flex-col gap-1 min-w-24 bg-primary text-primary-foreground shadow-sm"
+            >
+              <Wand2 className="w-4 h-4" />
+              <span className="text-xs font-medium">Magic Pencil</span>
+            </Button>
+          </nav>
+        </div>
+      </header>
+
+      <section ref={containerRef} className="py-8 px-6 relative">
       {/* Magic Pencil Cursor - Only in text area */}
       {hasStarted && isInTextArea && (
         <div 
@@ -1131,10 +1168,10 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
                   </p>
                   <Button 
                     onClick={() => setShowRefinedPrompt(true)}
-                    className="bg-gradient-to-r from-primary to-primary-glow"
+                    className="bg-gradient-to-r from-primary to-primary-glow hover:opacity-90"
                   >
                     <Zap className="w-4 h-4 mr-2" />
-                    Generate Refined Prompt
+                    Flush It!
                   </Button>
                 </motion.div>
               )}
@@ -1254,9 +1291,9 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
                 Full Experience
               </Button>
             </Card>
-          </div>
         </div>
       </div>
+    </div>
 
       {/* Comment Modal */}
       <AnimatePresence>
@@ -1367,14 +1404,22 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
               
               <div className="flex gap-3">
                 <Button
-                  onClick={() => {
-                    navigator.clipboard.writeText(refinedPrompt);
-                    setShowRefinedPrompt(false);
-                  }}
+                  onClick={() => navigator.clipboard.writeText(refinedPrompt)}
                   className="flex-1"
                 >
                   <Copy className="w-4 h-4 mr-2" />
-                  Copy & Close
+                  Copy Prompt
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowRefinedPrompt(false);
+                    onStartAnnotating();
+                  }}
+                  className="flex-1"
+                >
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Apply & Continue
                 </Button>
               </div>
             </motion.div>
@@ -1382,6 +1427,7 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
         )}
       </AnimatePresence>
     </section>
+    </div>
   );
 };
 
