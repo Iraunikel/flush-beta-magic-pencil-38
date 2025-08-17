@@ -247,12 +247,37 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
     
     if (!selectedText || !textRef.current) return;
 
-    // Calculate text indices for the selected range
-    const fullText = textRef.current.textContent || '';
-    const selectionStart = fullText.indexOf(selectedText);
-    const selectionEnd = selectionStart + selectedText.length;
+    // Calculate text indices using proper range handling
+    const textContent = textRef.current.textContent || '';
+    
+    // Get the start and end positions relative to the text container
+    let selectionStart = -1;
+    let selectionEnd = -1;
+    
+    try {
+      // Create a temporary range to find the actual position in the text
+      const containerRange = document.createRange();
+      containerRange.selectNodeContents(textRef.current);
+      
+      // Find start position
+      const startRange = containerRange.cloneRange();
+      startRange.setEnd(range.startContainer, range.startOffset);
+      selectionStart = startRange.toString().length;
+      
+      // Find end position  
+      const endRange = containerRange.cloneRange();
+      endRange.setEnd(range.endContainer, range.endOffset);
+      selectionEnd = endRange.toString().length;
+      
+      containerRange.detach();
+      startRange.detach();
+      endRange.detach();
+    } catch (error) {
+      console.warn('Error calculating selection range:', error);
+      return;
+    }
 
-    if (selectionStart === -1) return;
+    if (selectionStart === -1 || selectionEnd === -1 || selectionStart >= selectionEnd) return;
 
     // For eraser mode, remove any overlapping annotations
     if (selectedMode === 'eraser') {
