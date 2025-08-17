@@ -107,11 +107,11 @@ const CombinedAnnotationInterface: React.FC<CombinedAnnotationInterfaceProps> = 
             </TabsTrigger>
             <TabsTrigger value="canvas" className="flex items-center gap-2">
               <PenTool className="w-4 h-4" />
-              Canvas Drawing
+              Feature 1: Gesture Recognition
             </TabsTrigger>
             <TabsTrigger value="text" className="flex items-center gap-2">
               <Type className="w-4 h-4" />
-              Text Selection
+              Feature 2: Text Annotation
             </TabsTrigger>
           </TabsList>
           
