@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
 import { gsap } from 'gsap';
+// Removed anime.js - using Framer Motion and GSAP instead
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -16,7 +17,12 @@ import {
   Zap,
   X,
   Copy,
-  RefreshCw
+  RefreshCw,
+  Target,
+  Flame,
+  Droplets,
+  Award,
+  Volume2
 } from 'lucide-react';
 
 interface AnnotationData {
@@ -26,13 +32,26 @@ interface AnnotationData {
   type: 'hot' | 'neutral' | 'flush';
   comment?: string;
   timestamp: number;
+  intensity?: number;
+  wordIndex?: number;
 }
 
 interface MagicPencilExperienceProps {
   onStartAnnotating: () => void;
 }
 
+interface ParticleEffect {
+  id: string;
+  x: number;
+  y: number;
+  type: 'sparkle' | 'paint' | 'confetti';
+  color: string;
+}
+
 const demoText = `The future of AI interaction isn't about crafting perfect prompts. It's about creating a dialogue where your intuition guides the machine's understanding. Magic Pencil transforms this vision into reality by letting you paint your intentions directly onto AI responses. Draw your thoughts, highlight insights, cross out noise. Every gesture becomes structured feedback that trains smarter conversations.`;
+
+// Split text into individual words for granular animation
+const demoWords = demoText.split(/(\s+|[.,:;!?])/).filter(word => word.trim().length > 0);
 
 const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAnnotating }) => {
   const [selectedMode, setSelectedMode] = useState<'hot' | 'neutral' | 'flush'>('neutral');
@@ -44,33 +63,86 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
   const [cursorPosition, setCursorPosition] = useState({ x: 0, y: 0 });
   const [showRefinedPrompt, setShowRefinedPrompt] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [paintTrail, setPaintTrail] = useState<Array<{x: number, y: number, timestamp: number}>>([]);
+  const [particles, setParticles] = useState<ParticleEffect[]>([]);
+  const [streakCount, setStreakCount] = useState(0);
+  const [brushSize, setBrushSize] = useState(20);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [hoveredWordIndex, setHoveredWordIndex] = useState<number | null>(null);
+  
+  // Motion values for advanced interactions
+  const mouseX = useMotionValue(0);
+  const mouseY = useMotionValue(0);
+  const pencilRotation = useTransform(mouseX, [0, window.innerWidth], [-15, 15]);
   
   const textRef = useRef<HTMLDivElement>(null);
   const pencilRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const commentModalRef = useRef<HTMLDivElement>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
 
-  // Mode colors with sparkling effects
+  // Enhanced mode styles with temperature scale
   const modeStyles = {
     hot: {
-      bg: 'rgba(255, 87, 51, 0.12)',
-      border: 'rgba(255, 87, 51, 0.3)',
-      glow: '0 0 20px rgba(255, 87, 51, 0.15)',
-      sparkle: 'drop-shadow(0 0 3px rgba(255, 87, 51, 0.8))'
+      bg: 'linear-gradient(135deg, rgba(255, 87, 51, 0.15), rgba(255, 120, 90, 0.08))',
+      border: 'rgba(255, 87, 51, 0.4)',
+      glow: '0 0 30px rgba(255, 87, 51, 0.25), inset 0 0 15px rgba(255, 87, 51, 0.1)',
+      sparkle: 'drop-shadow(0 0 5px rgba(255, 87, 51, 1)) drop-shadow(0 0 10px rgba(255, 87, 51, 0.5))',
+      icon: Flame,
+      temperature: 100
     },
     neutral: {
-      bg: 'rgba(148, 163, 184, 0.08)',
-      border: 'rgba(148, 163, 184, 0.2)',
-      glow: '0 0 15px rgba(148, 163, 184, 0.1)',
-      sparkle: 'drop-shadow(0 0 2px rgba(148, 163, 184, 0.6))'
+      bg: 'linear-gradient(135deg, rgba(148, 163, 184, 0.1), rgba(203, 213, 225, 0.05))',
+      border: 'rgba(148, 163, 184, 0.3)',
+      glow: '0 0 20px rgba(148, 163, 184, 0.15), inset 0 0 10px rgba(148, 163, 184, 0.05)',
+      sparkle: 'drop-shadow(0 0 3px rgba(148, 163, 184, 0.8))',
+      icon: Target,
+      temperature: 50
     },
     flush: {
-      bg: 'rgba(59, 130, 246, 0.12)',
-      border: 'rgba(59, 130, 246, 0.3)',
-      glow: '0 0 20px rgba(59, 130, 246, 0.15)',
-      sparkle: 'drop-shadow(0 0 3px rgba(59, 130, 246, 0.8))'
+      bg: 'linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(96, 165, 250, 0.08))',
+      border: 'rgba(59, 130, 246, 0.4)',
+      glow: '0 0 30px rgba(59, 130, 246, 0.25), inset 0 0 15px rgba(59, 130, 246, 0.1)',
+      sparkle: 'drop-shadow(0 0 5px rgba(59, 130, 246, 1)) drop-shadow(0 0 10px rgba(59, 130, 246, 0.5))',
+      icon: Droplets,
+      temperature: 0
     }
   };
+
+  // Sound generation for feedback
+  const playSound = useCallback((type: 'select' | 'paint' | 'complete' | 'hover') => {
+    if (!soundEnabled || typeof window === 'undefined') return;
+    
+    try {
+      if (!audioContextRef.current) {
+        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      }
+      
+      const ctx = audioContextRef.current;
+      const oscillator = ctx.createOscillator();
+      const gain = ctx.createGain();
+      
+      oscillator.connect(gain);
+      gain.connect(ctx.destination);
+      
+      const frequencies = {
+        select: 800,
+        paint: 1200,
+        complete: 1600,
+        hover: 400
+      };
+      
+      oscillator.frequency.setValueAtTime(frequencies[type], ctx.currentTime);
+      gain.gain.setValueAtTime(0.1, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+      
+      oscillator.start(ctx.currentTime);
+      oscillator.stop(ctx.currentTime + 0.1);
+    } catch (error) {
+      console.log('Audio not supported');
+    }
+  }, [soundEnabled]);
 
   // Analytics calculation
   const analytics = useCallback(() => {
@@ -129,158 +201,293 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
     return prompt;
   }, [annotations]);
 
-  // GSAP animations
+  // Advanced GSAP + Anime.js animations
   useEffect(() => {
     const ctx = gsap.context(() => {
-      // Breathing animation for the entire experience
+      // Ambient background animation
       gsap.to(containerRef.current, {
-        scale: 1.002,
-        duration: 6,
+        backgroundPosition: '200% 200%',
+        duration: 20,
+        ease: "none",
+        repeat: -1
+      });
+
+      // Floating particles in background
+      gsap.to(".ambient-particle", {
+        y: () => gsap.utils.random(-50, 50),
+        x: () => gsap.utils.random(-30, 30),
+        rotation: () => gsap.utils.random(0, 360),
+        scale: () => gsap.utils.random(0.5, 1.5),
+        duration: () => gsap.utils.random(8, 15),
+        ease: "sine.inOut",
+        yoyo: true,
+        repeat: -1,
+        stagger: {
+          amount: 5,
+          from: "random"
+        }
+      });
+
+      // Magic pencil glow animation
+      gsap.to(".pencil-glow", {
+        opacity: 0.8,
+        scale: 1.2,
+        duration: 2,
         ease: "sine.inOut",
         yoyo: true,
         repeat: -1
       });
 
-      // Floating sparkles around the pencil
-      gsap.to(".magic-sparkle", {
-        y: -10,
-        x: () => gsap.utils.random(-5, 5),
-        rotation: () => gsap.utils.random(-15, 15),
-        scale: () => gsap.utils.random(0.8, 1.2),
-        duration: 2,
+      // Temperature scale animation
+      gsap.to(".temperature-bar", {
+        scaleY: () => gsap.utils.random(0.7, 1.3),
+        duration: 3,
         ease: "sine.inOut",
         yoyo: true,
         repeat: -1,
-        stagger: 0.3
+        stagger: 0.2
       });
-
-      // Call to action pulse
-      if (!hasStarted) {
-        gsap.to(".cta-pulse", {
-          scale: 1.05,
-          opacity: 0.8,
-          duration: 2,
-          ease: "sine.inOut",
-          yoyo: true,
-          repeat: -1
-        });
-      }
 
     }, containerRef);
 
-    return () => ctx.revert();
+    // Enhanced GSAP particle system
+    gsap.to('.floating-particle', {
+      y: "+=40",
+      x: "+=20", 
+      rotation: 360,
+      opacity: 0.8,
+      scale: 1.2,
+      duration: 2,
+      ease: "sine.inOut",
+      yoyo: true,
+      repeat: -1,
+      stagger: {
+        amount: 1,
+        from: "random"
+      }
+    });
+
+    return () => {
+      ctx.revert();
+    };
   }, [hasStarted]);
 
-  // Enhanced cursor tracking with pencil
+  // Revolutionary cursor transformation and tracking
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      setCursorPosition({ x: e.clientX, y: e.clientY });
+      const x = e.clientX;
+      const y = e.clientY;
+      
+      setCursorPosition({ x, y });
+      mouseX.set(x);
+      mouseY.set(y);
+      
+      // Dynamic brush size based on velocity
+      const velocity = Math.sqrt(
+        Math.pow(x - cursorPosition.x, 2) + Math.pow(y - cursorPosition.y, 2)
+      );
+      setBrushSize(Math.max(15, Math.min(40, 20 + velocity * 0.5)));
       
       if (pencilRef.current) {
+        // Advanced pencil physics with tilt based on mode
+        const tilt = selectedMode === 'hot' ? 25 : selectedMode === 'flush' ? -25 : velocity * 0.3;
+        
         gsap.to(pencilRef.current, {
-          x: e.clientX - 12,
-          y: e.clientY - 12,
-          rotation: selectedMode === 'hot' ? 15 : selectedMode === 'flush' ? -15 : 0,
-          duration: 0.2,
-          ease: "power2.out"
+          x: x - 16,
+          y: y - 16,
+          rotation: tilt,
+          scale: isDragging ? 1.2 : 1,
+          duration: 0.15,
+          ease: "power3.out"
         });
+
+        // Paint trail effect during interaction
+        if (isDragging) {
+          setPaintTrail(prev => [
+            ...prev.slice(-20), // Keep last 20 points
+            { x, y, timestamp: Date.now() }
+          ]);
+        }
       }
+    };
+
+    const handleMouseDown = () => setIsDragging(true);
+    const handleMouseUp = () => {
+      setIsDragging(false);
+      setPaintTrail([]);
     };
 
     if (hasStarted) {
       document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mousedown', handleMouseDown);
+      document.addEventListener('mouseup', handleMouseUp);
       document.body.style.cursor = 'none';
     }
 
     return () => {
       document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mousedown', handleMouseDown);
+      document.removeEventListener('mouseup', handleMouseUp);
       document.body.style.cursor = 'auto';
     };
-  }, [selectedMode, hasStarted]);
+  }, [selectedMode, hasStarted, isDragging, cursorPosition, mouseX, mouseY]);
 
-  // Focus achievement celebration
+  // Epic multi-stage celebration with physics
   const triggerCelebration = () => {
+    playSound('complete');
+    
+    // Stage 1: GSAP confetti explosion with physics
     gsap.timeline()
-      .to('.celebration-particle', {
-        scale: 1,
-        opacity: 1,
-        x: () => gsap.utils.random(-200, 200),
-        y: () => gsap.utils.random(-150, -250),
-        rotation: () => gsap.utils.random(0, 360),
-        duration: 3,
-        stagger: 0.05,
-        ease: "power2.out"
-      })
+      .fromTo('.celebration-particle', 
+        {
+          scale: 0,
+          opacity: 0
+        },
+        {
+          scale: 1,
+          opacity: 1,
+          x: () => gsap.utils.random(-300, 300),
+          y: () => gsap.utils.random(-200, -400),
+          rotation: 720,
+          duration: 2,
+          ease: "power2.out",
+          stagger: 0.05
+        }
+      )
       .to('.celebration-particle', {
         scale: 0,
         opacity: 0,
-        duration: 1.5,
+        duration: 1,
         ease: "power2.in"
-      }, "-=1")
-      .fromTo('.focus-message', 
-        { scale: 0, opacity: 0 },
-        { scale: 1, opacity: 1, duration: 1.2, ease: "back.out(1.7)" }
-      , 0.5);
+      }, "-=0.5");
+
+    // Stage 3: Achievement badge animation
+    gsap.timeline()
+      .fromTo('.achievement-badge', 
+        { 
+          scale: 0, 
+          rotation: -180,
+          opacity: 0,
+          filter: 'blur(10px)'
+        },
+        { 
+          scale: 1, 
+          rotation: 0,
+          opacity: 1,
+          filter: 'blur(0px)',
+          duration: 1.5, 
+          ease: "elastic.out(1, 0.5)" 
+        }
+      )
+      .to('.achievement-badge', {
+        boxShadow: '0 0 50px rgba(255, 215, 0, 0.8)',
+        duration: 0.5,
+        yoyo: true,
+        repeat: 3
+      });
+
+    // Stage 4: Screen flash effect
+    gsap.fromTo('.flash-overlay',
+      { opacity: 0 },
+      { 
+        opacity: 0.3, 
+        duration: 0.2,
+        yoyo: true,
+        repeat: 1,
+        ease: "power2.inOut"
+      }
+    );
   };
 
-  // Text selection handler
-  const handleTextSelection = () => {
+  // Revolutionary paint-flow text selection with word-by-word animation
+  const handleWordClick = (wordIndex: number, word: string) => {
     if (!hasStarted) {
       setHasStarted(true);
-      gsap.killTweensOf(".cta-pulse");
+      gsap.killTweensOf('.cta-pulse');
     }
 
-    const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0) return;
-
-    const range = selection.getRangeAt(0);
-    if (!textRef.current?.contains(range.commonAncestorContainer)) return;
-
-    const textContent = textRef.current.textContent || '';
-    const selectedTextContent = selection.toString();
+    playSound('paint');
     
-    if (selectedTextContent.trim()) {
-      const start = textContent.indexOf(selectedTextContent);
-      const end = start + selectedTextContent.length;
+    // Calculate text position for this word
+    let charStart = 0;
+    for (let i = 0; i < wordIndex; i++) {
+      charStart += demoWords[i].length;
+    }
+    
+    const newAnnotation: AnnotationData = {
+      id: `${Date.now()}-${wordIndex}`,
+      start: charStart,
+      end: charStart + word.length,
+      type: selectedMode,
+      timestamp: Date.now(),
+      intensity: Math.random() * 0.5 + 0.5, // Random intensity for visual variety
+      wordIndex
+    };
+    
+    setAnnotations(prev => [...prev, newAnnotation]);
+    setStreakCount(prev => prev + 1);
+
+    // Create paint particles at click location
+    const rect = textRef.current?.getBoundingClientRect();
+    if (rect) {
+      const newParticles: ParticleEffect[] = Array.from({ length: 8 }, (_, i) => ({
+        id: `particle-${Date.now()}-${i}`,
+        x: cursorPosition.x - rect.left + gsap.utils.random(-10, 10),
+        y: cursorPosition.y - rect.top + gsap.utils.random(-10, 10),
+        type: 'paint',
+        color: selectedMode === 'hot' ? '#ff5733' : selectedMode === 'flush' ? '#3b82f6' : '#94a3b8'
+      }));
       
-      if (start !== -1) {
-        const newAnnotation: AnnotationData = {
-          id: Date.now().toString(),
-          start,
-          end,
-          type: selectedMode,
-          timestamp: Date.now()
-        };
-        
-        setAnnotations(prev => [...prev, newAnnotation]);
-        
-        // Magical stroke animation
+      setParticles(prev => [...prev, ...newParticles]);
+      
+      // Remove particles after animation
+      setTimeout(() => {
+        setParticles(prev => prev.filter(p => !newParticles.find(np => np.id === p.id)));
+      }, 2000);
+    }
+
+    // Paint flow effect: adjacent words get painted with delay using GSAP
+    const adjacentWords = [wordIndex - 1, wordIndex + 1].filter(
+      i => i >= 0 && i < demoWords.length && !annotations.some(a => a.wordIndex === i)
+    );
+
+    adjacentWords.forEach((adjIndex, delay) => {
+      setTimeout(() => {
         gsap.timeline()
-          .fromTo(`.annotation-${newAnnotation.id}`, 
-            { 
-              scale: 0.8, 
-              opacity: 0, 
-              filter: 'blur(3px)',
-              boxShadow: `0 0 0px ${modeStyles[selectedMode].border}`
-            },
-            { 
-              scale: 1, 
-              opacity: 1, 
-              filter: 'blur(0px)',
-              boxShadow: modeStyles[selectedMode].glow,
-              duration: 1.2, 
-              ease: "elastic.out(1, 0.6)" 
-            }
-          )
-          .to(`.annotation-${newAnnotation.id}`, {
-            boxShadow: `0 0 5px ${modeStyles[selectedMode].border}`,
-            duration: 0.8,
+          .to(`.word-${adjIndex}`, {
+            scale: 1.05,
+            backgroundColor: selectedMode === 'hot' ? 'rgba(255, 87, 51, 0.1)' : 
+                            selectedMode === 'flush' ? 'rgba(59, 130, 246, 0.1)' : 'rgba(148, 163, 184, 0.1)',
+            duration: 0.4,
+            ease: "elastic.out(1, 0.5)"
+          })
+          .to(`.word-${adjIndex}`, {
+            scale: 1,
+            backgroundColor: 'transparent',
+            duration: 0.4,
             ease: "power2.out"
           });
-      }
-      
-      selection.removeAllRanges();
-    }
+        
+        playSound('hover');
+      }, delay * 200);
+    });
+
+    // Word annotation with liquid morphing effect using GSAP
+    gsap.timeline()
+      .to(`.word-${wordIndex}`, {
+        scale: 1.15,
+        rotateZ: selectedMode === 'hot' ? 2 : selectedMode === 'flush' ? -2 : 0,
+        duration: 0.2,
+        ease: "power2.out"
+      })
+      .to(`.word-${wordIndex}`, {
+        background: modeStyles[selectedMode].bg,
+        color: selectedMode === 'hot' ? '#ff5733' : selectedMode === 'flush' ? '#3b82f6' : '#64748b',
+        scale: 1,
+        rotateZ: 0,
+        duration: 0.6,
+        ease: "elastic.out(1, 0.8)"
+      });
   };
 
   // Check for focus achievement
@@ -292,72 +499,151 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
     }
   }, [annotations, focusAchieved, analytics]);
 
-  // Render annotated text
+  // Revolutionary word-by-word rendering with individual hover states
   const renderText = () => {
-    if (annotations.length === 0) {
-      return <span>{demoText}</span>;
-    }
-
-    const sortedAnnotations = [...annotations].sort((a, b) => a.start - b.start);
-    const parts: JSX.Element[] = [];
-    let lastIndex = 0;
-
-    sortedAnnotations.forEach((annotation) => {
-      if (annotation.start > lastIndex) {
-        parts.push(<span key={`text-${lastIndex}`}>{demoText.slice(lastIndex, annotation.start)}</span>);
-      }
-
-      parts.push(
-        <motion.span
-          key={annotation.id}
-          className={`annotation-${annotation.id} relative inline-block px-1 py-0.5 rounded-md cursor-pointer transition-all duration-300`}
-          style={{ 
-            background: modeStyles[annotation.type].bg,
-            border: `1px solid ${modeStyles[annotation.type].border}`,
-            filter: modeStyles[annotation.type].sparkle
-          }}
-          whileHover={{ 
-            scale: 1.02,
-            y: -1,
-            transition: { duration: 0.2 }
-          }}
-          onClick={() => {
-            setSelectedText({ start: annotation.start, end: annotation.end });
-            setShowComment(true);
-          }}
-        >
-          {demoText.slice(annotation.start, annotation.end)}
-          {annotation.comment && (
-            <MessageCircle className="inline w-3 h-3 ml-1 text-primary opacity-70" />
-          )}
+    return (
+      <div className="relative">
+        {demoWords.map((word, index) => {
+          const annotation = annotations.find(a => a.wordIndex === index);
+          const ModeIcon = annotation ? modeStyles[annotation.type].icon : null;
           
-          {/* Subtle sparkle effect */}
+          return (
+            <motion.span
+              key={`word-${index}`}
+              className={`word-${index} relative inline-block cursor-pointer transition-all duration-300 mx-0.5 my-1 px-1 py-0.5 rounded-md`}
+              style={{
+                background: annotation ? modeStyles[annotation.type].bg : 'transparent',
+                border: annotation ? `1px solid ${modeStyles[annotation.type].border}` : '1px solid transparent',
+                boxShadow: annotation ? modeStyles[annotation.type].glow : 'none'
+              }}
+              onMouseEnter={() => {
+                setHoveredWordIndex(index);
+                if (!annotation) playSound('hover');
+                
+                // Breathing effect on hover using GSAP
+                gsap.timeline()
+                  .to(`.word-${index}`, {
+                    scale: 1.08,
+                    duration: 0.3,
+                    ease: "elastic.out(1, 0.6)"
+                  })
+                  .to(`.word-${index}`, {
+                    scale: 1,
+                    duration: 0.3,
+                    ease: "power2.out"
+                  });
+              }}
+              onMouseLeave={() => {
+                setHoveredWordIndex(null);
+              }}
+              onClick={() => handleWordClick(index, word)}
+              whileHover={{
+                y: -2,
+                transition: { duration: 0.2, ease: "easeOut" }
+              }}
+              whileTap={{
+                scale: 0.95,
+                transition: { duration: 0.1 }
+              }}
+            >
+              {word}
+              
+              {/* Dynamic hover tooltip */}
+              <AnimatePresence>
+                {hoveredWordIndex === index && !annotation && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10, scale: 0.8 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 10, scale: 0.8 }}
+                    className="absolute -top-12 left-1/2 transform -translate-x-1/2 z-20"
+                  >
+                    <div className="bg-background/90 backdrop-blur-sm border border-primary/20 rounded-lg px-3 py-2 text-xs font-medium whitespace-nowrap shadow-lg">
+                      <div className="flex items-center gap-1">
+                        {React.createElement(modeStyles[selectedMode].icon, { className: "w-3 h-3" })}
+                        Paint as {selectedMode}
+                      </div>
+                      <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-primary/20" />
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Annotation indicator */}
+              {annotation && ModeIcon && (
+                <motion.div
+                  className="absolute -top-2 -right-2 w-4 h-4 rounded-full bg-background border border-primary/30 flex items-center justify-center"
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: "spring", delay: 0.1 }}
+                >
+                  <ModeIcon className="w-2.5 h-2.5 text-primary" />
+                </motion.div>
+              )}
+
+              {/* Intensity indicator for annotations */}
+              {annotation && (
+                <motion.div
+                  className="absolute -bottom-1 left-0 h-0.5 bg-primary rounded-full"
+                  style={{ 
+                    width: `${(annotation.intensity || 1) * 100}%`,
+                    background: `linear-gradient(90deg, ${modeStyles[annotation.type].border}, transparent)`
+                  }}
+                  initial={{ scaleX: 0 }}
+                  animate={{ scaleX: 1 }}
+                  transition={{ duration: 0.8, ease: "easeOut" }}
+                />
+              )}
+
+              {/* Sparkle animation for annotated words */}
+              {annotation && (
+                <motion.div
+                  className="absolute inset-0 pointer-events-none"
+                  animate={{
+                    background: [
+                      'transparent',
+                      `rgba(${selectedMode === 'hot' ? '255, 87, 51' : selectedMode === 'flush' ? '59, 130, 246' : '148, 163, 184'}, 0.1)`,
+                      'transparent'
+                    ]
+                  }}
+                  transition={{
+                    duration: 4,
+                    repeat: Infinity,
+                    ease: "easeInOut"
+                  }}
+                />
+              )}
+            </motion.span>
+          );
+        })}
+
+        {/* Paint particles overlay */}
+        {particles.map(particle => (
           <motion.div
-            className="absolute -top-1 -right-1 w-2 h-2"
+            key={particle.id}
+            className="absolute pointer-events-none z-10"
+            style={{
+              left: particle.x,
+              top: particle.y,
+              width: 4,
+              height: 4,
+              borderRadius: '50%',
+              backgroundColor: particle.color
+            }}
+            initial={{ scale: 0, opacity: 1 }}
             animate={{
               scale: [0, 1, 0],
-              opacity: [0, 0.6, 0],
-              rotate: [0, 180, 360]
+              opacity: [1, 0.7, 0],
+              y: [0, -30, -60],
+              x: [0, Math.random() * 20 - 10, Math.random() * 40 - 20]
             }}
             transition={{
-              duration: 3,
-              repeat: Infinity,
-              delay: Math.random() * 2
+              duration: 2,
+              ease: "easeOut"
             }}
-          >
-            <Sparkles className="w-2 h-2 text-primary" />
-          </motion.div>
-        </motion.span>
-      );
-
-      lastIndex = annotation.end;
-    });
-
-    if (lastIndex < demoText.length) {
-      parts.push(<span key={`text-${lastIndex}`}>{demoText.slice(lastIndex)}</span>);
-    }
-
-    return parts;
+          />
+        ))}
+      </div>
+    );
   };
 
   const currentStats = analytics();
@@ -500,7 +786,6 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
               <div
                 ref={textRef}
                 className="text-lg leading-relaxed text-foreground cursor-crosshair select-text relative z-20"
-                onMouseUp={handleTextSelection}
                 style={{ userSelect: hasStarted ? 'text' : 'none' }}
               >
                 {renderText()}
