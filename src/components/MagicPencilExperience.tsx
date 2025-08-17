@@ -801,6 +801,11 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
                 onMouseEnter={() => setIsInTextArea(true)}
                 onMouseLeave={() => setIsInTextArea(false)}
                 onMouseUp={handleTextSelection}
+                onPointerUp={handleTextSelection}
+                style={{ 
+                  userSelect: hasStarted ? 'text' : 'none',
+                  WebkitUserSelect: hasStarted ? 'text' : 'none'
+                }}
               >
                 {renderAnnotatedText()}
               </div>
