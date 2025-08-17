@@ -795,16 +795,16 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
                   relative text-base leading-relaxed text-foreground
                   transition-all duration-500 ease-out p-6 rounded-xl
                   ${isInTextArea ? 'bg-gradient-to-br from-card/50 to-background/30 border-2 border-primary/20' : 'bg-card/30 border border-border/30'}
-                  ${hasStarted ? 'cursor-none' : 'cursor-text'}
-                  backdrop-blur-sm select-text
+                  ${hasStarted && isInTextArea ? 'cursor-crosshair' : 'cursor-text'}
+                  backdrop-blur-sm
                 `}
                 onMouseEnter={() => setIsInTextArea(true)}
                 onMouseLeave={() => setIsInTextArea(false)}
                 onMouseUp={handleTextSelection}
-                onPointerUp={handleTextSelection}
                 style={{ 
-                  userSelect: hasStarted ? 'text' : 'none',
-                  WebkitUserSelect: hasStarted ? 'text' : 'none'
+                  userSelect: 'text',
+                  WebkitUserSelect: 'text',
+                  MozUserSelect: 'text'
                 }}
               >
                 {renderAnnotatedText()}
