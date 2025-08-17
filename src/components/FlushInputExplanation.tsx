@@ -14,14 +14,14 @@ import {
 
 const FlushInputExplanation: React.FC = () => {
   return (
-    <Card data-section="how-it-works" className="p-6 border-primary/20 bg-gradient-to-br from-primary/5 to-accent/5">
-      <div className="space-y-6">
-        <div className="text-center space-y-2">
+    <Card data-section="how-it-works" className="p-8 border-primary/20 bg-gradient-to-br from-primary/5 to-accent/5">
+      <div className="space-y-8">
+        <div className="text-center space-y-3">
           <div className="flex items-center justify-center gap-2">
             <Wand2 className="w-6 h-6 text-primary" />
-            <h2 className="text-xl font-bold text-foreground">How Flush Works</h2>
+            <h2 className="text-2xl font-bold text-foreground">How Flush Works</h2>
           </div>
-          <p className="text-muted-foreground">
+          <p className="text-muted-foreground text-lg max-w-3xl mx-auto leading-relaxed">
             Transform AI responses into refined, personalized outputs using our Magic Pencil annotation system
           </p>
         </div>

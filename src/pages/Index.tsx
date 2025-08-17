@@ -16,7 +16,7 @@ const Index = () => {
     <div className="min-h-screen bg-background">
       <UserExperienceLanding onStartAnnotating={handleStartAnnotating} />
       
-      <div data-section="annotation" className="container mx-auto px-4 py-16 space-y-12">
+      <div data-section="annotation" className="container mx-auto px-6 py-20 space-y-16">
         <FlushInputExplanation />
 
         <CombinedAnnotationInterface 

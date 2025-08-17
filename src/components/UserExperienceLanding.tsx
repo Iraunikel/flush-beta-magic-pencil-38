@@ -103,23 +103,22 @@ const UserExperienceLanding: React.FC<UserExperienceLandingProps> = ({ onStartAn
           <Star className="sparkle magic-float absolute top-1/2 right-1/6 w-4 h-4 text-primary-glow" />
         </div>
 
-        <div className="relative z-10 text-center max-w-4xl mx-auto px-4">
+        <div className="relative z-10 text-center max-w-5xl mx-auto px-6">
           <Badge className="hero-badge mb-6 bg-primary/10 text-primary border-primary/20 text-sm px-4 py-2">
             <Award className="w-4 h-4 mr-2" />
             Built for MetaTrap Hackathon 2025
           </Badge>
           
-          <h1 className="hero-title text-6xl md:text-8xl font-bold text-foreground mb-6">
-            <span className="bg-gradient-text bg-clip-text text-transparent">
+          <h1 className="hero-title text-6xl md:text-8xl font-bold text-foreground mb-8 leading-tight">
+            <span className="bg-gradient-text bg-clip-text text-transparent block">
               Magic
             </span>
-            <br />
-            <span className="text-4xl md:text-5xl text-muted-foreground">
+            <span className="text-3xl md:text-4xl text-muted-foreground font-normal leading-snug block mt-2">
               Transform lengthy prompts into intuitive, efficient AI editing
             </span>
           </h1>
           
-          <p className="hero-subtitle text-xl md:text-2xl text-muted-foreground mb-8 max-w-2xl mx-auto leading-relaxed">
+          <p className="hero-subtitle text-lg md:text-xl text-muted-foreground mb-10 max-w-2xl mx-auto leading-relaxed">
             Flush helps you to focus on what’s important and clear the clutter fast.
           </p>
           
