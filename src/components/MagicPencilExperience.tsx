@@ -224,6 +224,16 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
     if (annotations.length > 0) {
       setUndoStack(prev => [...prev, annotations]);
       setAnnotations([]);
+      // Remove all inline styles/marks on words to fully reset visuals
+      requestAnimationFrame(() => {
+        const nodes = document.querySelectorAll('[class^="word-"]');
+        nodes.forEach(node => {
+          const el = node as HTMLElement;
+          el.style.background = 'transparent';
+          el.style.border = '1px solid transparent';
+          el.style.boxShadow = 'none';
+        });
+      });
       playSound('complete');
     }
   }, [annotations, playSound]);
@@ -243,6 +253,7 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
   }, [annotations, undoStack, playSound]);
 
   // Fixed priority-based mode switching: Hot > Neutral > Flush > Eraser
+  // Detects a fast double swipe in the SAME direction (up→up or down→down)
   const detectGesture = useCallback((velocityY: number) => {
     const now = Date.now();
     const threshold = 6; // Slightly more sensitive
@@ -251,7 +262,6 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
       const newDirection = velocityY < 0 ? 'up' : 'down';
       
       setGestureDetection(prev => {
-        const isDirectionChange = prev.direction !== 'none' && prev.direction !== newDirection;
         const timeDiff = now - prev.lastSwingTime;
         
         // Reset if too much time passed
@@ -264,10 +274,11 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
           };
         }
         
-        // Count direction changes for double swipe detection
-        const newSwingCount = isDirectionChange ? prev.swingCount + 1 : prev.swingCount;
+        // Count consecutive swipes in the SAME direction
+        const sameDirection = prev.direction === newDirection;
+        const newSwingCount = sameDirection ? prev.swingCount + 1 : 1;
         
-        // Double swipe detected: implement priority-based switching
+        // Double swipe (same direction twice) detected within time window
         if (newSwingCount >= 2 && timeDiff < 500) {
           let newMode: 'hot' | 'neutral' | 'flush' | 'eraser' = selectedMode;
           
