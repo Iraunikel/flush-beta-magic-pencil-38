@@ -207,6 +207,7 @@ const AnnotationInterface: React.FC<AnnotationInterfaceProps> = ({
   const handleContentChange = (e: React.FormEvent<HTMLDivElement>) => {
     const newContent = e.currentTarget.textContent || '';
     onContentChange(newContent);
+    setPlainTextContent(newContent);
   };
 
   const clearAnnotations = () => {
@@ -418,7 +419,7 @@ const AnnotationInterface: React.FC<AnnotationInterfaceProps> = ({
           <div className="relative">
             <div
               ref={contentRef}
-              className="min-h-32 text-sm select-text p-4 border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 leading-relaxed"
+              className="min-h-32 text-sm selectable-text p-4 border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 leading-relaxed"
               contentEditable
               suppressContentEditableWarning
               onInput={handleContentChange}

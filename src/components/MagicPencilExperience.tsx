@@ -1040,7 +1040,7 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
               {hasStarted && (
                 <div className="mt-3 text-xs text-muted-foreground text-center">
                   <div className="flex items-center justify-center gap-4">
-                    <span>Use keys: <kbd className="px-1 py-0.5 bg-muted rounded text-xs">1</kbd>Hot <kbd className="px-1 py-0.5 bg-muted rounded text-xs">2</kbd>Neutral <kbd className="px-1 py-0.5 bg-muted rounded text-xs">3</kbd>Flush <kbd className="px-1 py-0.5 bg-muted rounded text-xs">E</kbd>Eraser</span>
+                    <span>Use keys: <kbd className="px-1 py-0.5 bg-muted rounded text-xs">1</kbd>Hot <kbd className="px-1 py-0.5 bg-muted rounded text-xs">2</kbd>Neutral <kbd className="px-1 py-0.5 bg-muted rounded text-xs">3</kbd>Flush <kbd className="px-1 py-0.5 bg-muted rounded text-xs">4/E</kbd>Eraser</span>
                     <span>or <kbd className="px-1 py-0.5 bg-muted rounded text-xs">↑↓</kbd> to cycle modes</span>
                   </div>
                 </div>
@@ -1099,7 +1099,7 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
               
               <div
                 ref={textRef}
-                className="text-lg leading-relaxed text-foreground select-text relative z-20 p-4 rounded-lg transition-all duration-300"
+                className="text-lg leading-relaxed text-foreground selectable-text relative z-20 p-4 rounded-lg transition-all duration-300"
                 style={{ 
                   userSelect: hasStarted ? 'text' : 'none',
                   cursor: isInTextArea && hasStarted ? 'none' : 'default',
@@ -1131,10 +1131,10 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
                   </p>
                   <Button 
                     onClick={() => setShowRefinedPrompt(true)}
-                    className="bg-gradient-primary hover:opacity-90"
+                    className="bg-gradient-to-r from-primary to-primary-glow"
                   >
                     <Zap className="w-4 h-4 mr-2" />
-                    Flush It!
+                    Generate Refined Prompt
                   </Button>
                 </motion.div>
               )}
@@ -1367,22 +1367,14 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
               
               <div className="flex gap-3">
                 <Button
-                  onClick={() => navigator.clipboard.writeText(refinedPrompt)}
-                  className="flex-1"
-                >
-                  <Copy className="w-4 h-4 mr-2" />
-                  Copy Prompt
-                </Button>
-                <Button
-                  variant="outline"
                   onClick={() => {
+                    navigator.clipboard.writeText(refinedPrompt);
                     setShowRefinedPrompt(false);
-                    onStartAnnotating();
                   }}
                   className="flex-1"
                 >
-                  <RefreshCw className="w-4 h-4 mr-2" />
-                  Apply & Continue
+                  <Copy className="w-4 h-4 mr-2" />
+                  Copy & Close
                 </Button>
               </div>
             </motion.div>
