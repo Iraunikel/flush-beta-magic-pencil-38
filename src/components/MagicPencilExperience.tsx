@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
 import { gsap } from 'gsap';
-// Removed anime.js - using Framer Motion and GSAP instead
+// Using Framer Motion and GSAP for cutting-edge animations
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -201,7 +201,7 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
     return prompt;
   }, [annotations]);
 
-  // Advanced GSAP + Anime.js animations
+  // Advanced GSAP animations with particle system
   useEffect(() => {
     const ctx = gsap.context(() => {
       // Ambient background animation
