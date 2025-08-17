@@ -364,7 +364,7 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
   const refinedPrompt = generateRefinedPrompt();
 
   return (
-    <section ref={containerRef} className="py-24 px-4 relative">
+    <section ref={containerRef} className="py-8 px-6 relative">
       {/* Magic Pencil Cursor */}
       {hasStarted && (
         <div 
@@ -408,15 +408,15 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
       </div>
 
       <div className="max-w-7xl mx-auto">
-        <div className="grid lg:grid-cols-4 gap-8">
+        <div className="grid lg:grid-cols-4 gap-6">
           {/* Main Magic Pencil Interface - 3 columns */}
-          <div className="lg:col-span-3 space-y-6">
+          <div className="lg:col-span-3 space-y-4">
             
             {/* Mode Palette */}
-            <Card className="p-6 bg-gradient-to-br from-primary/5 via-accent/5 to-primary-glow/5 border-primary/20">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-semibold text-foreground">Magic Pencil</h3>
-                <Palette className="w-6 h-6 text-primary" />
+            <Card className="p-4 bg-gradient-to-br from-primary/5 via-accent/5 to-primary-glow/5 border-primary/20">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-foreground">Magic Pencil</h3>
+                <Palette className="w-5 h-5 text-primary" />
               </div>
               
               <div className="grid grid-cols-3 gap-4">
@@ -457,7 +457,7 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
             </Card>
 
             {/* Interactive Text Area */}
-            <Card className="p-8 bg-gradient-to-br from-background via-primary/3 to-accent/3 border-primary/20 min-h-[400px] relative">
+            <Card className="p-6 bg-gradient-to-br from-background via-primary/3 to-accent/3 border-primary/20 min-h-[400px] relative">
               {/* Call to action overlay */}
               {!hasStarted && (
                 <motion.div
@@ -538,14 +538,14 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
           </div>
 
           {/* Analytics Sidebar - 1 column */}
-          <div className="space-y-6">
-            <Card className="p-6 bg-gradient-to-br from-primary/5 to-accent/5 border-primary/20">
+          <div className="space-y-4">
+            <Card className="p-4 bg-gradient-to-br from-primary/5 to-accent/5 border-primary/20">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-foreground">Analytics</h3>
                 <BarChart3 className="w-5 h-5 text-primary" />
               </div>
               
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <div className="text-center p-4 bg-muted/30 rounded-lg">
                   <div className="text-3xl font-bold text-primary">{currentStats.coverage}%</div>
                   <div className="text-sm text-muted-foreground">Annotated</div>
