@@ -54,7 +54,7 @@ const demoText = `The future of AI interaction isn't about crafting perfect prom
 const demoWords = demoText.split(/(\s+|[.,:;!?])/).filter(word => word.trim().length > 0);
 
 const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAnnotating }) => {
-  const [selectedMode, setSelectedMode] = useState<'hot' | 'neutral' | 'flush'>('neutral');
+  const [selectedMode, setSelectedMode] = useState<'hot' | 'neutral' | 'flush' | 'eraser'>('neutral');
   const [annotations, setAnnotations] = useState<AnnotationData[]>([]);
   const [selectedText, setSelectedText] = useState<{start: number, end: number} | null>(null);
   const [commentText, setCommentText] = useState('');
@@ -79,6 +79,7 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
     swingCount: 0,
     lastSwingTime: 0 
   });
+  const [undoStack, setUndoStack] = useState<AnnotationData[][]>([]);
   
   // Motion values for advanced interactions
   const mouseX = useMotionValue(0);
@@ -116,6 +117,14 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
       sparkle: 'drop-shadow(0 0 5px rgba(59, 130, 246, 1)) drop-shadow(0 0 10px rgba(59, 130, 246, 0.5))',
       icon: Droplets,
       temperature: 0
+    },
+    eraser: {
+      bg: 'linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(248, 113, 113, 0.08))',
+      border: 'rgba(239, 68, 68, 0.4)',
+      glow: '0 0 20px rgba(239, 68, 68, 0.25), inset 0 0 10px rgba(239, 68, 68, 0.1)',
+      sparkle: 'drop-shadow(0 0 3px rgba(239, 68, 68, 0.8))',
+      icon: X,
+      temperature: 25
     }
   };
 
@@ -210,6 +219,29 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
     return prompt;
   }, [annotations]);
 
+  // Clear all annotations
+  const clearAnnotations = useCallback(() => {
+    if (annotations.length > 0) {
+      setUndoStack(prev => [...prev, annotations]);
+      setAnnotations([]);
+      playSound('complete');
+    }
+  }, [annotations, playSound]);
+
+  // Undo last annotation
+  const undoLastAnnotation = useCallback(() => {
+    if (undoStack.length > 0) {
+      const previousState = undoStack[undoStack.length - 1];
+      setAnnotations(previousState);
+      setUndoStack(prev => prev.slice(0, -1));
+      playSound('hover');
+    } else if (annotations.length > 0) {
+      setUndoStack(prev => [...prev, annotations]);
+      setAnnotations(prev => prev.slice(0, -1));
+      playSound('hover');
+    }
+  }, [annotations, undoStack, playSound]);
+
   // Enhanced gesture-based mode switching with proper logic
   const detectGesture = useCallback((velocityY: number) => {
     const now = Date.now();
@@ -224,7 +256,7 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
         const timeDiff = now - prev.lastSwingTime;
         
         // Reset if too much time passed
-        if (timeDiff > 800) {
+        if (timeDiff > 1200) {
           return {
             velocityY,
             direction: newDirection,
@@ -234,11 +266,11 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
         }
         
         // Count swings and check for rapid direction changes (double swing)
-        const newSwingCount = isDirectionChange ? prev.swingCount + 1 : 1;
+        const newSwingCount = isDirectionChange ? prev.swingCount + 1 : prev.swingCount;
         
         // Double swing detected: rapid up-down or down-up motion
-        if (newSwingCount >= 2 && timeDiff < 400) {
-          let newMode: 'hot' | 'neutral' | 'flush' = selectedMode;
+        if (newSwingCount >= 2 && timeDiff < 600) {
+          let newMode: 'hot' | 'neutral' | 'flush' | 'eraser' = selectedMode;
           
           // Determine direction preference based on last movement
           const preferUp = newDirection === 'up';
@@ -247,10 +279,13 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
             // From neutral: up goes to hot, down goes to flush
             newMode = preferUp ? 'hot' : 'flush';
           } else if (selectedMode === 'hot') {
-            // From hot: first step always to neutral
+            // From hot: first step always to neutral, second could go to flush
             newMode = 'neutral';
           } else if (selectedMode === 'flush') {
-            // From flush: first step always to neutral
+            // From flush: first step always to neutral, second could go to hot
+            newMode = 'neutral';
+          } else if (selectedMode === 'eraser') {
+            // From eraser: always to neutral first
             newMode = 'neutral';
           }
           
@@ -259,11 +294,12 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
             playSound('complete');
             
             // Add debugging
-            console.log(`Mode switched: ${selectedMode} → ${newMode} (direction: ${newDirection})`);
+            console.log(`Mode switched: ${selectedMode} → ${newMode} (direction: ${newDirection}, swings: ${newSwingCount})`);
             
             // Visual feedback based on new mode
             const indicator = newMode === 'hot' ? '.mode-indicator-hot' : 
                              newMode === 'flush' ? '.mode-indicator-flush' : 
+                             newMode === 'eraser' ? '.mode-indicator-eraser' :
                              '.mode-indicator-neutral';
             gsap.to(indicator, { scale: 1.4, duration: 0.3, yoyo: true, repeat: 1 });
           }
@@ -280,7 +316,7 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
         return {
           velocityY,
           direction: newDirection,
-          swingCount: newSwingCount,
+          swingCount: Math.max(newSwingCount, 1),
           lastSwingTime: now
         };
       });
@@ -568,6 +604,27 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
 
   // Enhanced word annotation for auto-selection
   const handleWordAnnotation = useCallback((wordIndex: number, word: string, isClick = false) => {
+    // Handle eraser mode - remove existing annotation
+    if (selectedMode === 'eraser') {
+      const existingAnnotation = annotations.find(a => a.wordIndex === wordIndex);
+      if (existingAnnotation) {
+        setUndoStack(prev => [...prev, annotations]);
+        setAnnotations(prev => prev.filter(a => a.wordIndex !== wordIndex));
+        playSound('select');
+        
+        // Visual feedback for erasing
+        gsap.to(`.word-${wordIndex}`, {
+          scale: 0.8,
+          opacity: 0.5,
+          duration: 0.2,
+          yoyo: true,
+          repeat: 1,
+          ease: "power2.inOut"
+        });
+      }
+      return;
+    }
+    
     // Check if word is already annotated
     if (annotations.some(a => a.wordIndex === wordIndex)) return;
     
@@ -589,12 +646,13 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
       id: `${Date.now()}-${wordIndex}`,
       start: charStart,
       end: charStart + word.length,
-      type: selectedMode,
+      type: selectedMode as 'hot' | 'neutral' | 'flush',
       timestamp: Date.now(),
       intensity: Math.random() * 0.5 + 0.5, // Random intensity for visual variety
       wordIndex
     };
     
+    setUndoStack(prev => [...prev, annotations]);
     setAnnotations(prev => [...prev, newAnnotation]);
     setStreakCount(prev => prev + 1);
 
@@ -653,7 +711,7 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
       })
       .to(`.word-${wordIndex}`, {
         background: modeStyles[selectedMode].bg,
-        color: selectedMode === 'hot' ? '#ff5733' : selectedMode === 'flush' ? '#3b82f6' : '#64748b',
+        color: selectedMode === 'hot' ? '#ff5733' : selectedMode === 'flush' ? '#3b82f6' : selectedMode === 'neutral' ? '#64748b' : '#ef4444',
         scale: 1,
         rotateZ: 0,
         duration: 0.6,
@@ -911,11 +969,12 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
                 <Palette className="w-5 h-5 text-primary" />
               </div>
               
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-4 gap-3">
                 {[
                   { type: 'hot' as const, emoji: '🔴', label: 'Hot', desc: 'Enhance & expand' },
                   { type: 'neutral' as const, emoji: '⚪', label: 'Neutral', desc: 'Keep as-is' },
-                  { type: 'flush' as const, emoji: '🔵', label: 'Flush', desc: 'Remove/reduce' }
+                  { type: 'flush' as const, emoji: '🔵', label: 'Flush', desc: 'Remove/reduce' },
+                  { type: 'eraser' as const, emoji: '🗑️', label: 'Eraser', desc: 'Remove existing' }
                 ].map(mode => (
                   <motion.button
                     key={mode.type}
@@ -1075,6 +1134,33 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
                   <div className="text-lg font-semibold text-foreground">{currentStats.annotationCount}</div>
                   <div className="text-xs text-muted-foreground">Total Annotations</div>
                 </div>
+              </div>
+            </Card>
+
+            {/* Controls */}
+            <Card className="p-6 bg-gradient-to-br from-accent/5 to-primary-glow/5 border-accent/20">
+              <h3 className="text-lg font-semibold text-foreground mb-4">Controls</h3>
+              <div className="space-y-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={undoLastAnnotation}
+                  disabled={annotations.length === 0 && undoStack.length === 0}
+                  className="w-full flex items-center gap-2"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  Undo
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={clearAnnotations}
+                  disabled={annotations.length === 0}
+                  className="w-full flex items-center gap-2"
+                >
+                  <X className="w-4 h-4" />
+                  Clear All
+                </Button>
               </div>
             </Card>
 
