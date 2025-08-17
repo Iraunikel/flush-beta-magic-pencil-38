@@ -265,23 +265,49 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
         const timeDiff = now - prev.lastSwingTime;
         
         // Prevent rapid consecutive gestures (cooldown)
-        if (timeDiff < 300) {
+        if (timeDiff < 400) {
           return prev;
         }
         
         let newMode: 'hot' | 'neutral' | 'flush' | 'eraser' = selectedMode;
         
-        // Simple cycle: Hot ↔ Neutral ↔ Flush (no eraser in gesture cycle)
+        // Explicit mode transitions based on priority order: Hot (3) → Neutral (2) → Flush (1)
         if (newDirection === 'down') {
-          // Down swipe = Lower priority
-          if (selectedMode === 'hot') newMode = 'neutral';
-          else if (selectedMode === 'neutral') newMode = 'flush';
-          // flush stays flush on down swipe
+          // Down swipe = DECREASE priority (step down)
+          console.log(`Down swipe detected from ${selectedMode}`);
+          switch (selectedMode) {
+            case 'hot':
+              newMode = 'neutral';
+              break;
+            case 'neutral': 
+              newMode = 'flush';
+              break;
+            case 'flush':
+              // Stay at flush (lowest priority)
+              newMode = 'flush';
+              break;
+            case 'eraser':
+              newMode = 'flush';
+              break;
+          }
         } else {
-          // Up swipe = Higher priority  
-          if (selectedMode === 'flush') newMode = 'neutral';
-          else if (selectedMode === 'neutral') newMode = 'hot';
-          // hot stays hot on up swipe
+          // Up swipe = INCREASE priority (step up)
+          console.log(`Up swipe detected from ${selectedMode}`);
+          switch (selectedMode) {
+            case 'flush':
+              newMode = 'neutral';
+              break;
+            case 'neutral':
+              newMode = 'hot';
+              break;
+            case 'hot':
+              // Stay at hot (highest priority)
+              newMode = 'hot';
+              break;
+            case 'eraser':
+              newMode = 'hot';
+              break;
+          }
         }
         
         if (newMode !== selectedMode) {
@@ -292,6 +318,8 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
           // Visual feedback
           const indicator = `.mode-indicator-${newMode}`;
           gsap.to(indicator, { scale: 1.6, duration: 0.2, yoyo: true, repeat: 1 });
+        } else {
+          console.log(`No mode change needed - already at ${newDirection === 'down' ? 'lowest' : 'highest'} priority`);
         }
         
         return {
