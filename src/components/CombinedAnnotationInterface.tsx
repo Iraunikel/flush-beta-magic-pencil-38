@@ -22,7 +22,7 @@ const CombinedAnnotationInterface: React.FC<CombinedAnnotationInterfaceProps> = 
   const [canvasAnnotations, setCanvasAnnotations] = useState<CanvasAnnotation[]>([]);
   const [textAnnotations, setTextAnnotations] = useState<Annotation[]>([]);
   const [magicPencilAnnotations, setMagicPencilAnnotations] = useState<any[]>([]);
-  const [activeMode, setActiveMode] = useState<'ux' | 'canvas' | 'text'>('ux');
+  const [activeMode, setActiveMode] = useState<'ux' | 'canvas' | 'text'>('text');
   const [sessionStartTime] = useState(Date.now());
 
   const handleCanvasAnnotationsChange = (newAnnotations: CanvasAnnotation[]) => {
@@ -90,28 +90,33 @@ const CombinedAnnotationInterface: React.FC<CombinedAnnotationInterfaceProps> = 
     <div className="space-y-8">
       {/* Mode Selection */}
       <Card className="p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold text-foreground">Flush Beta - Magic Pencil</h2>
-          {totalAnnotations > 0 && (
+        <div className="mb-4">
+          <div className="text-center space-y-1">
+            <h2 className="text-xl font-bold text-foreground">Flush Beta</h2>
+            <p className="text-sm text-muted-foreground">Features developed during the hackathon</p>
+          </div>
+        </div>
+        {totalAnnotations > 0 && (
+          <div className="flex justify-end mb-2">
             <Badge variant="secondary" className="text-sm px-3 py-1">
               {totalAnnotations} annotation{totalAnnotations !== 1 ? 's' : ''}
             </Badge>
-          )}
-        </div>
+          </div>
+        )}
         
         <Tabs value={activeMode} onValueChange={(value) => setActiveMode(value as 'ux' | 'canvas' | 'text')}>
           <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="ux" className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4" />
-              Magic Pencil
+            <TabsTrigger value="text" className="flex items-center gap-2">
+              <Type className="w-4 h-4" />
+              Feature 1: Basic Text Annotation
             </TabsTrigger>
             <TabsTrigger value="canvas" className="flex items-center gap-2">
               <PenTool className="w-4 h-4" />
-              Feature 1: Gesture Recognition
+              Feature 2: Gesture Recognition
             </TabsTrigger>
-            <TabsTrigger value="text" className="flex items-center gap-2">
-              <Type className="w-4 h-4" />
-              Feature 2: Text Annotation
+            <TabsTrigger value="ux" className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4" />
+              Feature 3: Animation Flow
             </TabsTrigger>
           </TabsList>
           
