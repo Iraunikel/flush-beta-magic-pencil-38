@@ -7,7 +7,6 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Textarea } from '@/components/ui/textarea';
-import { Input } from '@/components/ui/input';
 import { 
   Palette, 
   Sparkles, 
@@ -34,6 +33,7 @@ interface AnnotationData {
   comment?: string;
   timestamp: number;
   intensity?: number;
+  wordIndex?: number;
 }
 
 interface MagicPencilExperienceProps {
@@ -49,6 +49,9 @@ interface ParticleEffect {
 }
 
 const demoText = `The future of AI interaction isn't about crafting perfect prompts. It's about creating a dialogue where your intuition guides the machine's understanding. Magic Pencil transforms this vision into reality by letting you paint your intentions directly onto AI responses. Draw your thoughts, highlight insights, cross out noise. Every gesture becomes structured feedback that trains smarter conversations.`;
+
+// Split text into individual words for granular animation
+const demoWords = demoText.split(/(\s+|[.,:;!?])/).filter(word => word.trim().length > 0);
 
 const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAnnotating }) => {
   const [selectedMode, setSelectedMode] = useState<'hot' | 'neutral' | 'flush' | 'eraser'>('neutral');
@@ -78,7 +81,7 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
   });
   const [undoStack, setUndoStack] = useState<AnnotationData[][]>([]);
   const [showCommentModal, setShowCommentModal] = useState(false);
-  const [activeAnnotationForComment, setActiveAnnotationForComment] = useState<string | null>(null);
+  const [activeWordForComment, setActiveWordForComment] = useState<number | null>(null);
   const [commentInputText, setCommentInputText] = useState('');
   
   // Motion values for advanced interactions
@@ -194,7 +197,7 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
     if (hotAnnotations.length > 0) {
       prompt += '🔥 EXPAND AND ENHANCE these parts (marked as HOT):\n';
       hotAnnotations.forEach(annotation => {
-        const text = demoText.slice(annotation.start, annotation.end).trim();
+        const text = demoWords[annotation.wordIndex || 0] || demoText.slice(annotation.start, annotation.end).trim();
         prompt += `- "${text}"${annotation.comment ? ` (${annotation.comment})` : ''}\n`;
       });
       prompt += '\n';
@@ -203,7 +206,7 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
     if (neutralAnnotations.length > 0) {
       prompt += '👍 KEEP THE SAME these parts (marked as NEUTRAL):\n';
       neutralAnnotations.forEach(annotation => {
-        const text = demoText.slice(annotation.start, annotation.end).trim();
+        const text = demoWords[annotation.wordIndex || 0] || demoText.slice(annotation.start, annotation.end).trim();
         prompt += `- "${text}"${annotation.comment ? ` (${annotation.comment})` : ''}\n`;
       });
       prompt += '\n';
@@ -212,7 +215,7 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
     if (flushAnnotations.length > 0) {
       prompt += '🚽 REMOVE OR MINIMIZE these parts (marked as FLUSH):\n';
       flushAnnotations.forEach(annotation => {
-        const text = demoText.slice(annotation.start, annotation.end).trim();
+        const text = demoWords[annotation.wordIndex || 0] || demoText.slice(annotation.start, annotation.end).trim();
         prompt += `- "${text}"${annotation.comment ? ` (${annotation.comment})` : ''}\n`;
       });
       prompt += '\n';
@@ -229,7 +232,7 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
       id: annotation.id,
       type: 'magic-pencil' as const,
       relevanceLevel: annotation.type as 'hot' | 'neutral' | 'flush',
-      text: demoText.slice(annotation.start, annotation.end),
+      text: demoWords[annotation.wordIndex || 0] || demoText.slice(annotation.start, annotation.end),
       comment: annotation.comment || '',
       timestamp: annotation.timestamp,
       startIndex: annotation.start,
@@ -237,114 +240,45 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
     }));
   }, [annotations]);
 
-  // Enhanced text selection handler for range selection
-  const handleTextSelection = useCallback(() => {
-    const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0 || isDragging) return;
-
-    const range = selection.getRangeAt(0);
-    const selectedText = range.toString().trim();
-    
-    if (!selectedText || !textRef.current) return;
-
-    // Calculate text indices using proper range handling
-    const textContent = textRef.current.textContent || '';
-    
-    // Get the start and end positions relative to the text container
-    let selectionStart = -1;
-    let selectionEnd = -1;
-    
-    try {
-      // Create a temporary range to find the actual position in the text
-      const containerRange = document.createRange();
-      containerRange.selectNodeContents(textRef.current);
-      
-      // Find start position
-      const startRange = containerRange.cloneRange();
-      startRange.setEnd(range.startContainer, range.startOffset);
-      selectionStart = startRange.toString().length;
-      
-      // Find end position  
-      const endRange = containerRange.cloneRange();
-      endRange.setEnd(range.endContainer, range.endOffset);
-      selectionEnd = endRange.toString().length;
-      
-      containerRange.detach();
-      startRange.detach();
-      endRange.detach();
-    } catch (error) {
-      console.warn('Error calculating selection range:', error);
-      return;
-    }
-
-    if (selectionStart === -1 || selectionEnd === -1 || selectionStart >= selectionEnd) return;
-
-    // For eraser mode, remove any overlapping annotations
-    if (selectedMode === 'eraser') {
-      setAnnotations(prev => prev.filter(annotation => {
-        return !(annotation.start <= selectionStart && annotation.end >= selectionEnd) &&
-               !(selectionStart <= annotation.start && selectionEnd >= annotation.end) &&
-               !(selectionStart < annotation.end && selectionEnd > annotation.start);
-      }));
-      
-      // Clear selection
-      selection.removeAllRanges();
-      playSound('select');
-      return;
-    }
-
-    // Create new annotation for the selected range
-    const newAnnotation: AnnotationData = {
-      id: `annotation-${Date.now()}-${Math.random()}`,
-      start: selectionStart,
-      end: selectionEnd,
-      type: selectedMode as 'hot' | 'neutral' | 'flush',
-      timestamp: Date.now(),
-      intensity: selectedMode === 'hot' ? 100 : selectedMode === 'flush' ? 0 : 50
-    };
-
-    // Add the annotation
-    setAnnotations(prev => [...prev, newAnnotation]);
-    
-    // Show comment modal for this range
-    setActiveAnnotationForComment(newAnnotation.id);
-    setCommentInputText('');
-    setShowCommentModal(true);
-    
-    // Clear selection
-    selection.removeAllRanges();
-    playSound('select');
-  }, [selectedMode, isDragging, playSound]);
-
-  // Handle annotation click for adding comments
-  const handleAnnotationClick = useCallback((annotation: AnnotationData) => {
-    if (!isDragging) {
-      setActiveAnnotationForComment(annotation.id);
-      setCommentInputText(annotation.comment || '');
-      setShowCommentModal(true);
-    }
-  }, [isDragging]);
-
   // Handle comment submission
   const handleCommentSubmit = useCallback(() => {
-    if (activeAnnotationForComment === null) return;
+    if (activeWordForComment === null) return;
     
     setAnnotations(prev => prev.map(annotation => 
-      annotation.id === activeAnnotationForComment
+      annotation.wordIndex === activeWordForComment 
         ? { ...annotation, comment: commentInputText }
         : annotation
     ));
     
     setShowCommentModal(false);
-    setActiveAnnotationForComment(null);
+    setActiveWordForComment(null);
     setCommentInputText('');
-  }, [activeAnnotationForComment, commentInputText]);
+  }, [activeWordForComment, commentInputText]);
+
+  // Handle word click for adding comments
+  const handleWordClick = useCallback((wordIndex: number, word: string, annotation?: AnnotationData) => {
+    if (annotation && !isDragging) {
+      setActiveWordForComment(wordIndex);
+      setCommentInputText(annotation.comment || '');
+      setShowCommentModal(true);
+    }
+  }, [isDragging]);
 
   // Clear all annotations
   const clearAnnotations = useCallback(() => {
     if (annotations.length > 0) {
       setUndoStack(prev => [...prev, annotations]);
       setAnnotations([]);
+      // Remove all inline styles/marks on words to fully reset visuals
+      requestAnimationFrame(() => {
+        const nodes = document.querySelectorAll('[class^="word-"]');
+        nodes.forEach(node => {
+          const el = node as HTMLElement;
+          el.style.background = 'transparent';
+          el.style.border = '1px solid transparent';
+          el.style.boxShadow = 'none';
+        });
+      });
       playSound('complete');
     }
   }, [annotations, playSound]);
@@ -382,8 +316,6 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
           newMode = 'flush';
           break;
         case '4':
-        case 'e':
-        case 'E':
           newMode = 'eraser';
           break;
         case 'ArrowUp':
@@ -414,11 +346,94 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [selectedMode, isInTextArea, hasStarted, playSound]);
 
-  // Enhanced cursor tracking
+  // Simplified gesture detection - disabled for reliable interaction
+  const detectGesture = useCallback((velocityY: number) => {
+    // Gesture detection disabled in favor of keyboard shortcuts
+    return;
+  }, []);
+
+  // Advanced GSAP animations with particle system
   useEffect(() => {
+    const ctx = gsap.context(() => {
+      // Ambient background animation
+      gsap.to(containerRef.current, {
+        backgroundPosition: '200% 200%',
+        duration: 20,
+        ease: "none",
+        repeat: -1
+      });
+
+      // Floating particles in background
+      gsap.to(".ambient-particle", {
+        y: () => gsap.utils.random(-50, 50),
+        x: () => gsap.utils.random(-30, 30),
+        rotation: () => gsap.utils.random(0, 360),
+        scale: () => gsap.utils.random(0.5, 1.5),
+        duration: () => gsap.utils.random(8, 15),
+        ease: "sine.inOut",
+        yoyo: true,
+        repeat: -1,
+        stagger: {
+          amount: 5,
+          from: "random"
+        }
+      });
+
+      // Magic pencil glow animation
+      gsap.to(".pencil-glow", {
+        opacity: 0.8,
+        scale: 1.2,
+        duration: 2,
+        ease: "sine.inOut",
+        yoyo: true,
+        repeat: -1
+      });
+
+      // Temperature scale animation
+      gsap.to(".temperature-bar", {
+        scaleY: () => gsap.utils.random(0.7, 1.3),
+        duration: 3,
+        ease: "sine.inOut",
+        yoyo: true,
+        repeat: -1,
+        stagger: 0.2
+      });
+
+    }, containerRef);
+
+    // Enhanced GSAP particle system
+    gsap.to('.floating-particle', {
+      y: "+=40",
+      x: "+=20", 
+      rotation: 360,
+      opacity: 0.8,
+      scale: 1.2,
+      duration: 2,
+      ease: "sine.inOut",
+      yoyo: true,
+      repeat: -1,
+      stagger: {
+        amount: 1,
+        from: "random"
+      }
+    });
+
+    return () => {
+      ctx.revert();
+    };
+  }, [hasStarted]);
+
+  // Enhanced cursor tracking with gesture detection and text area scope
+  useEffect(() => {
+    let lastY = 0;
+    let lastTime = Date.now();
+    
     const handleMouseMove = (e: MouseEvent) => {
       const x = e.clientX;
       const y = e.clientY;
+      const now = Date.now();
+      
+      // Gesture detection disabled - using reliable keyboard shortcuts instead
       
       setCursorPosition({ x, y });
       mouseX.set(x);
@@ -451,6 +466,9 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
           ]);
         }
       }
+      
+      lastY = y;
+      lastTime = now;
     };
 
     const handleMouseDown = () => setIsDragging(true);
@@ -468,314 +486,655 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
       document.removeEventListener('mousedown', handleMouseDown);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [selectedMode, hasStarted, isDragging, cursorPosition, mouseX, mouseY, isInTextArea]);
+  }, [selectedMode, hasStarted, isDragging, cursorPosition, mouseX, mouseY, isInTextArea, detectGesture]);
 
-  // Enhanced function to render text with range-based annotations
-  const renderAnnotatedText = () => {
-    if (annotations.length === 0) {
-      return <span className="select-text">{demoText}</span>;
-    }
+  // Handle text area entry/exit for cursor scoping
+  useEffect(() => {
+    const textElement = textRef.current;
+    if (!textElement) return;
 
-    // Create a map of character positions to annotations
-    const charMap: { [key: number]: AnnotationData[] } = {};
-    annotations.forEach(annotation => {
-      for (let i = annotation.start; i < annotation.end; i++) {
-        if (!charMap[i]) charMap[i] = [];
-        charMap[i].push(annotation);
+    const handleMouseEnter = () => {
+      setIsInTextArea(true);
+      if (hasStarted && !showBanner) {
+        document.body.style.cursor = 'none';
+        setAutoSelectEnabled(true);
+        // Visual feedback for entering auto-select mode
+        gsap.to('.text-area-border', { 
+          borderColor: 'rgba(var(--primary), 0.4)', 
+          boxShadow: '0 0 20px rgba(var(--primary), 0.2)',
+          duration: 0.3 
+        });
       }
-    });
-
-    const result = [];
-    let currentAnnotations: AnnotationData[] = [];
-    let currentText = '';
-
-    const arraysEqual = (a: AnnotationData[], b: AnnotationData[]): boolean => {
-      if (a.length !== b.length) return false;
-      const aIds = a.map(ann => ann.id).sort();
-      const bIds = b.map(ann => ann.id).sort();
-      return aIds.every((id, index) => id === bIds[index]);
     };
 
-    for (let i = 0; i < demoText.length; i++) {
-      const charAnnotations = charMap[i] || [];
+    const handleMouseLeave = () => {
+      setIsInTextArea(false);
+      document.body.style.cursor = 'auto';
+      setAutoSelectEnabled(false);
+      setHoveredWordIndex(null);
+      // Reset border
+      gsap.to('.text-area-border', { 
+        borderColor: 'rgba(var(--primary), 0.2)', 
+        boxShadow: 'none',
+        duration: 0.3 
+      });
+    };
+
+    const handleClick = () => {
+      if (showBanner) {
+        setShowBanner(false);
+        setHasStarted(true);
+        setAutoSelectEnabled(true);
+        document.body.style.cursor = 'none';
+      } else if (hasStarted) {
+        // Toggle between Magic Pencil mode and standard cursor mode
+        setAutoSelectEnabled(prev => {
+          const newEnabled = !prev;
+          document.body.style.cursor = newEnabled ? 'none' : 'auto';
+          
+          // Visual feedback
+          gsap.to('.text-area-border', { 
+            borderColor: newEnabled ? 'rgba(var(--primary), 0.4)' : 'rgba(var(--primary), 0.2)', 
+            boxShadow: newEnabled ? '0 0 20px rgba(var(--primary), 0.2)' : 'none',
+            duration: 0.3 
+          });
+          
+          return newEnabled;
+        });
+      }
+    };
+
+    textElement.addEventListener('mouseenter', handleMouseEnter);
+    textElement.addEventListener('mouseleave', handleMouseLeave);
+    textElement.addEventListener('click', handleClick);
+
+    return () => {
+      textElement.removeEventListener('mouseenter', handleMouseEnter);
+      textElement.removeEventListener('mouseleave', handleMouseLeave);
+      textElement.removeEventListener('click', handleClick);
+      document.body.style.cursor = 'auto';
+    };
+  }, [hasStarted, showBanner]);
+
+  // Epic multi-stage celebration with physics
+  const triggerCelebration = () => {
+    playSound('complete');
+    
+    // Stage 1: GSAP confetti explosion with physics
+    gsap.timeline()
+      .fromTo('.celebration-particle', 
+        {
+          scale: 0,
+          opacity: 0
+        },
+        {
+          scale: 1,
+          opacity: 1,
+          x: () => gsap.utils.random(-300, 300),
+          y: () => gsap.utils.random(-200, -400),
+          rotation: 720,
+          duration: 2,
+          ease: "power2.out",
+          stagger: 0.05
+        }
+      )
+      .to('.celebration-particle', {
+        scale: 0,
+        opacity: 0,
+        duration: 1,
+        ease: "power2.in"
+      }, "-=0.5");
+
+    // Stage 3: Achievement badge animation
+    gsap.timeline()
+      .fromTo('.achievement-badge', 
+        { 
+          scale: 0, 
+          rotation: -180,
+          opacity: 0,
+          filter: 'blur(10px)'
+        },
+        { 
+          scale: 1, 
+          rotation: 0,
+          opacity: 1,
+          filter: 'blur(0px)',
+          duration: 1.5, 
+          ease: "elastic.out(1, 0.5)" 
+        }
+      )
+      .to('.achievement-badge', {
+        boxShadow: '0 0 50px rgba(255, 215, 0, 0.8)',
+        duration: 0.5,
+        yoyo: true,
+        repeat: 3
+      });
+
+    // Stage 4: Screen flash effect
+    gsap.fromTo('.flash-overlay',
+      { opacity: 0 },
+      { 
+        opacity: 0.3, 
+        duration: 0.2,
+        yoyo: true,
+        repeat: 1,
+        ease: "power2.inOut"
+      }
+    );
+  };
+
+
+  // Enhanced word annotation for auto-selection with improved eraser
+  const handleWordAnnotation = useCallback((wordIndex: number, word: string, isClick = false) => {
+    console.log(`Annotation attempt: word=${word}, index=${wordIndex}, mode=${selectedMode}, isClick=${isClick}`);
+    
+    // Handle eraser mode - remove existing annotation
+    if (selectedMode === 'eraser') {
+      const existingAnnotation = annotations.find(a => a.wordIndex === wordIndex);
+      console.log('Eraser mode - existing annotation:', existingAnnotation);
       
-      // Check if annotations changed
-      const annotationsChanged = !arraysEqual(currentAnnotations, charAnnotations);
-      
-      if (annotationsChanged) {
-        // Push current segment if it has content
-        if (currentText) {
-          if (currentAnnotations.length > 0) {
-            // Find the primary annotation (most recent for overlaps)
-            const primaryAnnotation = currentAnnotations[currentAnnotations.length - 1];
-            const style = modeStyles[primaryAnnotation.type];
-            
-            result.push(
-              <motion.span
-                key={`annotation-${result.length}`}
-                className="inline-block px-1.5 py-0.5 mx-0.5 rounded-sm cursor-pointer transition-all duration-200 ease-out hover:scale-[1.01] relative select-text"
-                style={{
-                  background: style.bg,
-                  border: `1px solid ${style.border}`,
-                  boxShadow: style.glow
-                }}
-                onClick={() => handleAnnotationClick(primaryAnnotation)}
-                title={primaryAnnotation.comment || `${primaryAnnotation.type.toUpperCase()} annotation`}
-              >
-                {currentText}
-                {primaryAnnotation.comment && (
-                  <motion.div
-                    className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full border border-background"
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ delay: 0.2 }}
-                  />
-                )}
-              </motion.span>
-            );
-          } else {
-            result.push(<span key={`text-${result.length}`} className="select-text">{currentText}</span>);
-          }
+      if (existingAnnotation) {
+        setUndoStack(prev => [...prev, annotations]);
+        setAnnotations(prev => {
+          const filtered = prev.filter(a => a.wordIndex !== wordIndex);
+          console.log('After erasing:', filtered.length, 'annotations remain');
+          return filtered;
+        });
+        playSound('select');
+        
+        // Force clear all styles immediately - both inline and CSS classes
+        const wordElement = document.querySelector(`.word-${wordIndex}`) as HTMLElement;
+        if (wordElement) {
+          // Clear all inline styles that might have been applied
+          wordElement.style.background = '';
+          wordElement.style.border = '';
+          wordElement.style.boxShadow = '';
+          wordElement.style.color = '';
+          wordElement.style.transform = '';
+          wordElement.style.scale = '';
+          wordElement.style.opacity = '';
+          
+          // Kill any ongoing GSAP animations on this element
+          gsap.killTweensOf(wordElement);
+          
+          // Force reset to default state
+          gsap.set(wordElement, {
+            background: 'transparent',
+            border: '1px solid transparent', 
+            boxShadow: 'none',
+            color: 'inherit',
+            scale: 1,
+            rotation: 0,
+            clearProps: "all"
+          });
         }
         
-        // Reset for new segment
-        currentAnnotations = charAnnotations;
-        currentText = demoText[i];
+        // Enhanced visual feedback for erasing
+        gsap.timeline()
+          .to(`.word-${wordIndex}`, {
+            scale: 0.6,
+            opacity: 0.3,
+            rotateZ: -10,
+            duration: 0.3,
+            ease: "power2.out"
+          })
+          .to(`.word-${wordIndex}`, {
+            scale: 1,
+            opacity: 1,
+            rotateZ: 0,
+            duration: 0.4,
+            ease: "elastic.out(1, 0.8)"
+          });
       } else {
-        currentText += demoText[i];
+        console.log('No annotation to erase at this word');
       }
+      return;
+    }
+    
+    // Check if word is already annotated - prevent duplicate annotations
+    if (annotations.some(a => a.wordIndex === wordIndex)) {
+      console.log('Word already annotated, skipping');
+      return;
+    }
+    
+    if (!hasStarted && isClick) {
+      setHasStarted(true);
+      setShowBanner(false);
+      gsap.killTweensOf('.cta-pulse');
     }
 
-    // Handle final segment
-    if (currentText) {
-      if (currentAnnotations.length > 0) {
-        const primaryAnnotation = currentAnnotations[currentAnnotations.length - 1];
-        const style = modeStyles[primaryAnnotation.type];
+    playSound(isClick ? 'paint' : 'hover');
+    
+    // Calculate text position for this word
+    let charStart = 0;
+    for (let i = 0; i < wordIndex; i++) {
+      charStart += demoWords[i].length;
+    }
+    
+    const newAnnotation: AnnotationData = {
+      id: `${Date.now()}-${wordIndex}`,
+      start: charStart,
+      end: charStart + word.length,
+      type: selectedMode as 'hot' | 'neutral' | 'flush',
+      timestamp: Date.now(),
+      intensity: Math.random() * 0.5 + 0.5, // Random intensity for visual variety
+      wordIndex
+    };
+    
+    setUndoStack(prev => [...prev, annotations]);
+    setAnnotations(prev => [...prev, newAnnotation]);
+    setStreakCount(prev => prev + 1);
+
+    // Create paint particles at click location
+    const rect = textRef.current?.getBoundingClientRect();
+    if (rect) {
+      const newParticles: ParticleEffect[] = Array.from({ length: 8 }, (_, i) => ({
+        id: `particle-${Date.now()}-${i}`,
+        x: cursorPosition.x - rect.left + gsap.utils.random(-10, 10),
+        y: cursorPosition.y - rect.top + gsap.utils.random(-10, 10),
+        type: 'paint',
+        color: selectedMode === 'hot' ? '#ff5733' : selectedMode === 'flush' ? '#3b82f6' : '#94a3b8'
+      }));
+      
+      setParticles(prev => [...prev, ...newParticles]);
+      
+      // Remove particles after animation
+      setTimeout(() => {
+        setParticles(prev => prev.filter(p => !newParticles.find(np => np.id === p.id)));
+      }, 2000);
+    }
+
+    // Paint flow effect: adjacent words get painted with delay using GSAP
+    const adjacentWords = [wordIndex - 1, wordIndex + 1].filter(
+      i => i >= 0 && i < demoWords.length && !annotations.some(a => a.wordIndex === i)
+    );
+
+    adjacentWords.forEach((adjIndex, delay) => {
+      setTimeout(() => {
+        gsap.timeline()
+          .to(`.word-${adjIndex}`, {
+            scale: 1.05,
+            backgroundColor: selectedMode === 'hot' ? 'rgba(255, 87, 51, 0.1)' : 
+                            selectedMode === 'flush' ? 'rgba(59, 130, 246, 0.1)' : 'rgba(148, 163, 184, 0.1)',
+            duration: 0.4,
+            ease: "elastic.out(1, 0.5)"
+          })
+          .to(`.word-${adjIndex}`, {
+            scale: 1,
+            backgroundColor: 'rgba(0, 0, 0, 0)',
+            duration: 0.4,
+            ease: "power2.out"
+          });
         
-        result.push(
-          <motion.span
-            key={`annotation-${result.length}`}
-            className="inline-block px-1.5 py-0.5 mx-0.5 rounded-sm cursor-pointer transition-all duration-200 ease-out hover:scale-[1.01] relative select-text"
-            style={{
-              background: style.bg,
-              border: `1px solid ${style.border}`,
-              boxShadow: style.glow
-            }}
-            onClick={() => handleAnnotationClick(primaryAnnotation)}
-            title={primaryAnnotation.comment || `${primaryAnnotation.type.toUpperCase()} annotation`}
-          >
-            {currentText}
-            {primaryAnnotation.comment && (
-              <motion.div
-                className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full border border-background"
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ delay: 0.2 }}
-              />
-            )}
-          </motion.span>
-        );
-      } else {
-        result.push(<span key={`text-${result.length}`} className="select-text">{currentText}</span>);
-      }
-    }
+        playSound('hover');
+      }, delay * 200);
+    });
 
-    return result;
-  };
+    // Word annotation with liquid morphing effect using GSAP
+    gsap.timeline()
+      .to(`.word-${wordIndex}`, {
+        scale: 1.15,
+        rotateZ: selectedMode === 'hot' ? 2 : selectedMode === 'flush' ? -2 : 0,
+        duration: 0.2,
+        ease: "power2.out"
+      })
+      .to(`.word-${wordIndex}`, {
+        background: modeStyles[selectedMode].bg,
+        color: selectedMode === 'hot' ? '#ff5733' : selectedMode === 'flush' ? '#3b82f6' : selectedMode === 'neutral' ? '#64748b' : '#ef4444',
+        scale: 1,
+        rotateZ: 0,
+        duration: 0.6,
+        ease: "elastic.out(1, 0.8)"
+      });
+  }, [selectedMode, hasStarted, annotations, cursorPosition, playSound]);
 
   // Check for focus achievement
   useEffect(() => {
     const stats = analytics();
     if (stats.coverage >= 95 && !focusAchieved && annotations.length > 0) {
       setFocusAchieved(true);
+      triggerCelebration();
     }
   }, [annotations, focusAchieved, analytics]);
 
-  const currentStats = analytics();
+  // Revolutionary word-by-word rendering with individual hover states
+  const renderText = () => {
+    return (
+      <div className="relative">
+        {demoWords.map((word, index) => {
+          const annotation = annotations.find(a => a.wordIndex === index);
+          const ModeIcon = annotation ? modeStyles[annotation.type].icon : null;
+          
+          return (
+            <motion.span
+              key={`word-${index}`}
+              className={`word-${index} relative inline-block cursor-pointer transition-all duration-300 mx-0.5 my-1 px-1 py-0.5 rounded-md`}
+                style={{
+                  background: annotation ? modeStyles[annotation.type].bg : 'rgba(0, 0, 0, 0)',
+                  border: annotation ? `1px solid ${modeStyles[annotation.type].border}` : '1px solid rgba(0, 0, 0, 0)',
+                  boxShadow: annotation ? modeStyles[annotation.type].glow : 'none'
+                }}
+               onMouseEnter={() => {
+                setHoveredWordIndex(index);
+                
+                // Only auto-annotate on hover for non-eraser modes
+                if (selectedMode !== 'eraser' && !annotation && autoSelectEnabled && hasStarted && !showBanner) {
+                  playSound('hover');
+                  handleWordAnnotation(index, word);
+                }
+                
+                // Breathing effect on hover using GSAP
+                gsap.timeline()
+                  .to(`.word-${index}`, {
+                    scale: 1.08,
+                    duration: 0.3,
+                    ease: "elastic.out(1, 0.6)"
+                  })
+                  .to(`.word-${index}`, {
+                    scale: 1,
+                    duration: 0.3,
+                    ease: "power2.out"
+                  });
+              }}
+              onMouseLeave={() => {
+                setHoveredWordIndex(null);
+              }}
+              onClick={() => {
+                if (showBanner) {
+                  setShowBanner(false);
+                  setHasStarted(true);
+                  setAutoSelectEnabled(true);
+                  return;
+                }
+                
+                // Handle eraser mode - erase on click
+                if (selectedMode === 'eraser') {
+                  if (annotation) {
+                    handleWordAnnotation(index, word, true);
+                  }
+                  return;
+                }
 
-  return (
-    <div 
-      ref={containerRef}
-      className="min-h-screen bg-gradient-to-br from-background via-primary/5 to-accent/5 relative overflow-hidden"
-    >
-      {/* Magic Pencil Cursor */}
-      <AnimatePresence>
-        {hasStarted && isInTextArea && (
-          <motion.div
-            ref={pencilRef}
-            className="fixed top-0 left-0 pointer-events-none z-50 pencil-glow"
-            style={{
-              rotate: pencilRotation,
-            }}
-            initial={{ opacity: 0, scale: 0 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0 }}
-          >
-            <div 
-              className="w-8 h-8 rounded-full border-2 transition-all duration-200"
-              style={{
-                background: modeStyles[selectedMode].bg,
-                borderColor: modeStyles[selectedMode].border,
-                boxShadow: modeStyles[selectedMode].glow,
-                filter: modeStyles[selectedMode].sparkle
+                // Handle annotation modes
+                if (!annotation) {
+                  handleWordAnnotation(index, word, true);
+                } else {
+                  // If word is already annotated, open comment modal
+                  handleWordClick(index, word, annotation);
+                }
+              }}
+              whileHover={{
+                y: -2,
+                transition: { duration: 0.2, ease: "easeOut" }
+              }}
+              whileTap={{
+                scale: 0.95,
+                transition: { duration: 0.1 }
               }}
             >
-              <div className="w-full h-full rounded-full bg-gradient-to-br from-white/30 to-transparent" />
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+              {word}
+              
+              {/* Dynamic hover tooltip */}
+              <AnimatePresence>
+                {hoveredWordIndex === index && !annotation && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10, scale: 0.8 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 10, scale: 0.8 }}
+                    className="absolute -top-12 left-1/2 transform -translate-x-1/2 z-20"
+                  >
+                    <div className="bg-background/90 backdrop-blur-sm border border-primary/20 rounded-lg px-3 py-2 text-xs font-medium whitespace-nowrap shadow-lg">
+                      <div className="flex items-center gap-1">
+                        {React.createElement(modeStyles[selectedMode].icon, { className: "w-3 h-3" })}
+                        {selectedMode === 'eraser' ? 'Erase annotation' : `Paint as ${selectedMode}`}
+                      </div>
+                      <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-primary/20" />
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
-      {/* Comment Modal */}
-      <AnimatePresence>
-        {showCommentModal && (
+              {/* Annotation indicator */}
+              {annotation && ModeIcon && (
+                <motion.div
+                  className="absolute -top-2 -right-2 w-4 h-4 rounded-full bg-background border border-primary/30 flex items-center justify-center"
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: "spring", delay: 0.1 }}
+                >
+                  <ModeIcon className="w-2.5 h-2.5 text-primary" />
+                </motion.div>
+              )}
+
+              {/* Intensity indicator for annotations */}
+              {annotation && (
+                <motion.div
+                  className="absolute -bottom-1 left-0 h-0.5 bg-primary rounded-full"
+                  style={{ 
+                    width: `${(annotation.intensity || 1) * 100}%`,
+                    background: `linear-gradient(90deg, ${modeStyles[annotation.type].border}, transparent)`
+                  }}
+                  initial={{ scaleX: 0 }}
+                  animate={{ scaleX: 1 }}
+                  transition={{ duration: 0.8, ease: "easeOut" }}
+                />
+              )}
+
+              {/* Sparkle animation for annotated words */}
+              {annotation && (
+                <motion.div
+                  className="absolute inset-0 pointer-events-none"
+                  animate={{
+                    background: [
+                      'rgba(0, 0, 0, 0)',
+                      `rgba(${selectedMode === 'hot' ? '255, 87, 51' : selectedMode === 'flush' ? '59, 130, 246' : '148, 163, 184'}, 0.1)`,
+                      'rgba(0, 0, 0, 0)'
+                    ]
+                  }}
+                  transition={{
+                    duration: 4,
+                    repeat: Infinity,
+                    ease: "easeInOut"
+                  }}
+                />
+              )}
+            </motion.span>
+          );
+        })}
+
+        {/* Paint particles overlay */}
+        {particles.map(particle => (
           <motion.div
-            className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setShowCommentModal(false)}
-          >
-            <motion.div
-              ref={commentModalRef}
-              className="bg-card rounded-xl p-6 max-w-md w-full mx-4 border shadow-xl"
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h3 className="text-lg font-semibold mb-4 text-foreground">Add Comment</h3>
-              <Input
-                value={commentInputText}
-                onChange={(e) => setCommentInputText(e.target.value)}
-                placeholder="Add a comment (optional)"
-                className="mb-4"
-                autoFocus
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    handleCommentSubmit();
-                  } else if (e.key === 'Escape') {
-                    setShowCommentModal(false);
-                  }
-                }}
-              />
-              <div className="flex gap-2">
-                <Button onClick={handleCommentSubmit} className="flex-1">
-                  Save
-                </Button>
-                <Button variant="outline" onClick={() => setShowCommentModal(false)}>
-                  Skip
-                </Button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            key={particle.id}
+            className="absolute pointer-events-none z-10"
+            style={{
+              left: particle.x,
+              top: particle.y,
+              width: 4,
+              height: 4,
+              borderRadius: '50%',
+              backgroundColor: particle.color
+            }}
+            initial={{ scale: 0, opacity: 1 }}
+            animate={{
+              scale: [0, 1, 0],
+              opacity: [1, 0.7, 0],
+              y: [0, -30, -60],
+              x: [0, Math.random() * 20 - 10, Math.random() * 40 - 20]
+            }}
+            transition={{
+              duration: 2,
+              ease: "easeOut"
+            }}
+          />
+        ))}
+      </div>
+    );
+  };
 
-      <div className="container mx-auto px-6 py-12">
-        {/* Header Section */}
-        <motion.div
-          className="text-center mb-12"
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8 }}
+  const currentStats = analytics();
+  const refinedPrompt = generateRefinedPrompt();
+
+  return (
+    <section ref={containerRef} className="py-8 px-6 relative">
+      {/* Magic Pencil Cursor - Only in text area */}
+      {hasStarted && isInTextArea && (
+        <div 
+          ref={pencilRef}
+          className="fixed pointer-events-none z-50"
+          style={{ left: 0, top: 0 }}
         >
-          <div className="inline-flex items-center gap-3 mb-6">
-            <motion.div
-              className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center"
-              whileHover={{ scale: 1.05, rotate: 5 }}
-              transition={{ type: "spring", stiffness: 400, damping: 10 }}
-            >
-              <Wand2 className="w-6 h-6 text-primary-foreground" />
-            </motion.div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-accent to-primary-glow bg-clip-text text-transparent">
-              Magic Pencil Experience
-            </h1>
-          </div>
-          
-          <p className="text-xl text-muted-foreground max-w-3xl mx-auto mb-8">
-            Transform AI feedback from tedious typing to intuitive painting. Select text ranges and annotate with natural gestures.
-          </p>
-
-          {/* Mode Selector with Temperature Scale */}
-          <motion.div 
-            className="flex flex-wrap items-center justify-center gap-3 bg-card/80 backdrop-blur-sm rounded-xl p-4 border border-border/50 max-w-4xl mx-auto"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-          >
-            <div className="flex items-center gap-2">
-              <div className="text-sm font-semibold text-foreground">Mode:</div>
-              <div className="text-xs text-muted-foreground">Select text to annotate</div>
+          <div className="relative">
+            <Wand2 
+              className="w-6 h-6 text-primary" 
+              style={{ filter: modeStyles[selectedMode].sparkle }}
+            />
+            
+            {/* Enhanced palette with gesture feedback - Priority order display */}
+            <div className="absolute -top-8 -left-4 flex gap-1 opacity-80">
+              <div 
+                className={`mode-indicator-hot w-2 h-2 rounded-full border transition-all duration-200 ${selectedMode === 'hot' ? 'bg-red-400 border-red-400 shadow-lg' : 'bg-red-400/30 border-red-400/50'}`}
+                title="Hot (Priority 3)"
+              />
+              <div 
+                className={`mode-indicator-neutral w-2 h-2 rounded-full border transition-all duration-200 ${selectedMode === 'neutral' ? 'bg-slate-400 border-slate-400 shadow-lg' : 'bg-slate-400/30 border-slate-400/50'}`}
+                title="Neutral (Priority 2)"
+              />
+              <div 
+                className={`mode-indicator-flush w-2 h-2 rounded-full border transition-all duration-200 ${selectedMode === 'flush' ? 'bg-blue-400 border-blue-400 shadow-lg' : 'bg-blue-400/30 border-blue-400/50'}`}
+                title="Flush (Priority 1)"
+              />
+              <div 
+                className={`mode-indicator-eraser w-2 h-2 rounded-full border transition-all duration-200 ${selectedMode === 'eraser' ? 'bg-red-600 border-red-600 shadow-lg' : 'bg-red-600/30 border-red-600/50'}`}
+                title="Eraser (Priority 0)"
+              />
             </div>
             
-            {Object.entries(modeStyles).map(([mode, style]) => {
-              const Icon = style.icon;
-              const isSelected = selectedMode === mode;
-              const modeKey = mode === 'hot' ? '1' : mode === 'neutral' ? '2' : mode === 'flush' ? '3' : '4/E';
+            {/* Updated gesture hint showing priority */}
+            {gestureDetection.swingCount > 0 && (
+              <div className="absolute -top-14 left-1/2 transform -translate-x-1/2 text-xs bg-background/90 px-2 py-1 rounded-full border whitespace-nowrap">
+                {gestureDetection.direction === 'up' ? '↑ Higher Priority' : '↓ Lower Priority'}
+              </div>
+            )}
+            
+            {/* Floating sparkles around pencil */}
+            <Sparkles className="magic-sparkle absolute -top-2 -right-2 w-3 h-3 text-primary-glow opacity-60" />
+            <Sparkles className="magic-sparkle absolute -bottom-1 -left-3 w-2 h-2 text-accent opacity-50" />
+          </div>
+        </div>
+      )}
+
+      {/* Celebration particles */}
+      <div className="fixed inset-0 pointer-events-none z-40">
+        {[...Array(30)].map((_, i) => (
+          <div key={i} className="celebration-particle absolute top-1/2 left-1/2 scale-0 opacity-0">
+            <Sparkles className="w-4 h-4 text-primary" />
+          </div>
+        ))}
+      </div>
+
+      <div className="max-w-7xl mx-auto">
+        <div className="grid lg:grid-cols-4 gap-6">
+          {/* Main Magic Pencil Interface - 3 columns */}
+          <div className="lg:col-span-3 space-y-4">
+            
+            {/* Mode Palette */}
+            <Card className="p-4 bg-gradient-to-br from-primary/5 via-accent/5 to-primary-glow/5 border-primary/20">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-foreground">Magic Pencil</h3>
+                <Palette className="w-5 h-5 text-primary" />
+              </div>
               
-              return (
-                <motion.button
-                  key={mode}
-                  className={`
-                    flex items-center gap-2 px-4 py-2 rounded-lg border transition-all duration-300
-                    ${isSelected 
-                      ? 'border-primary bg-primary text-primary-foreground shadow-lg shadow-primary/25' 
-                      : 'border-border/30 bg-background/50 text-foreground hover:border-primary/50'
-                    }
-                  `}
-                  onClick={() => setSelectedMode(mode as any)}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <Icon className="w-4 h-4" />
-                  <span className="text-sm font-medium capitalize">{mode}</span>
-                  <Badge variant="outline" className="text-xs">
-                    {modeKey}
-                  </Badge>
-                </motion.button>
-              );
-            })}
-          </motion.div>
-        </motion.div>
-
-        {/* Main Content Area */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          <div className="lg:col-span-3 space-y-6">
-            {/* Start Button */}
-            {!hasStarted && (
-              <motion.div 
-                className="text-center"
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.5 }}
-              >
-                <Button
-                  size="lg"
-                  onClick={() => {
-                    setHasStarted(true);
-                    setShowBanner(false);
-                  }}
-                  className="bg-gradient-to-r from-primary to-primary-glow text-primary-foreground font-semibold px-8 py-4 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
-                >
-                  <Sparkles className="w-5 h-5 mr-2" />
-                  Start Annotating
-                </Button>
-              </motion.div>
-            )}
-
-            {/* Keyboard Shortcuts Guide */}
-            {hasStarted && (
-              <Card className="p-4 bg-gradient-to-r from-primary/5 to-accent/5 border-primary/20">
-                <div className="flex items-center justify-center gap-4 text-sm text-muted-foreground">
-                  <span>Use keys: <kbd className="px-1 py-0.5 bg-muted rounded text-xs">1</kbd>Hot <kbd className="px-1 py-0.5 bg-muted rounded text-xs">2</kbd>Neutral <kbd className="px-1 py-0.5 bg-muted rounded text-xs">3</kbd>Flush <kbd className="px-1 py-0.5 bg-muted rounded text-xs">4/E</kbd>Eraser</span>
-                  <span>or <kbd className="px-1 py-0.5 bg-muted rounded text-xs">↑↓</kbd> to cycle modes</span>
+              <div className="grid grid-cols-4 gap-3">
+                {[
+                  { type: 'hot' as const, emoji: '🔴', label: 'Hot', desc: 'Enhance & expand' },
+                  { type: 'neutral' as const, emoji: '⚪', label: 'Neutral', desc: 'Keep as-is' },
+                  { type: 'flush' as const, emoji: '🔵', label: 'Flush', desc: 'Remove/reduce' },
+                  { type: 'eraser' as const, emoji: '🗑️', label: 'Eraser', desc: 'Remove existing' }
+                ].map(mode => (
+                  <motion.button
+                    key={mode.type}
+                    className={`relative p-4 rounded-xl border-2 transition-all duration-300 ${
+                      selectedMode === mode.type 
+                        ? 'border-primary bg-primary/10 shadow-lg' 
+                        : 'border-muted hover:border-primary/50 bg-background/50'
+                    }`}
+                    onClick={() => setSelectedMode(mode.type)}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    style={{
+                      boxShadow: selectedMode === mode.type ? modeStyles[mode.type].glow : 'none'
+                    }}
+                  >
+                    <div className="text-center">
+                      <div className="text-2xl mb-2">{mode.emoji}</div>
+                      <div className="text-sm font-medium text-foreground">{mode.label}</div>
+                      <div className="text-xs text-muted-foreground mt-1">{mode.desc}</div>
+                    </div>
+                    
+                    {selectedMode === mode.type && (
+                      <motion.div
+                        layoutId="selected-mode"
+                        className="absolute inset-0 bg-gradient-to-br from-primary/20 via-accent/10 to-primary-glow/20 rounded-xl"
+                      />
+                    )}
+                  </motion.button>
+                ))}
+              </div>
+              
+              {/* Keyboard shortcuts hint */}
+              {hasStarted && (
+                <div className="mt-3 text-xs text-muted-foreground text-center">
+                  <div className="flex items-center justify-center gap-4">
+                    <span>Use keys: <kbd className="px-1 py-0.5 bg-muted rounded text-xs">1</kbd>Hot <kbd className="px-1 py-0.5 bg-muted rounded text-xs">2</kbd>Neutral <kbd className="px-1 py-0.5 bg-muted rounded text-xs">3</kbd>Flush <kbd className="px-1 py-0.5 bg-muted rounded text-xs">E</kbd>Eraser</span>
+                    <span>or <kbd className="px-1 py-0.5 bg-muted rounded text-xs">↑↓</kbd> to cycle modes</span>
+                  </div>
                 </div>
-              </Card>
-            )}
+              )}
+            </Card>
 
             {/* Interactive Text Area */}
             <Card className="text-area-border p-6 bg-gradient-to-br from-background via-primary/3 to-accent/3 border-primary/20 min-h-[400px] relative transition-all duration-300">
+              {/* Enhanced Banner with blur background */}
+              <AnimatePresence>
+                {showBanner && (
+                  <motion.div
+                    className="absolute inset-0 flex items-center justify-center z-10 rounded-lg"
+                    initial={{ opacity: 1 }}
+                    exit={{ opacity: 0, scale: 1.1 }}
+                    transition={{ duration: 0.8 }}
+                  >
+                    {/* Blur background text */}
+                    <div className="absolute inset-0 bg-background/80 backdrop-blur-md rounded-lg" />
+                    
+                    <div className="relative text-center p-8 bg-gradient-to-br from-primary/10 via-accent/10 to-primary-glow/10 border-2 border-primary/30 rounded-2xl backdrop-blur-xl">
+                      <motion.div
+                        animate={{ 
+                          y: [0, -10, 0],
+                          opacity: [0.7, 1, 0.7]
+                        }}
+                        transition={{ 
+                          duration: 2,
+                          repeat: Infinity,
+                          ease: "easeInOut"
+                        }}
+                      >
+                        <Wand2 className="w-12 h-12 text-primary mx-auto mb-4" style={{ filter: modeStyles[selectedMode].sparkle }} />
+                        <h3 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent mb-2">
+                          Start highlighting
+                        </h3>
+                        <p className="text-base text-muted-foreground mb-4">
+                          Click to begin annotation
+                        </p>
+                        <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground/70">
+                          <span>💡 Pro tip: Double swipe ↑ higher priority, ↓ lower priority</span>
+                        </div>
+                      </motion.div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+              
               <div className="mb-6 flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-foreground">AI Response</h3>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -784,20 +1143,17 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
                 </div>
               </div>
               
-              <div 
+              <div
                 ref={textRef}
-                className={`
-                  relative text-base leading-relaxed text-foreground
-                  transition-all duration-500 ease-out p-6 rounded-xl
-                  ${isInTextArea ? 'bg-gradient-to-br from-card/50 to-background/30 border-2 border-primary/20' : 'bg-card/30 border border-border/30'}
-                  ${hasStarted ? 'cursor-none' : 'cursor-text'}
-                  backdrop-blur-sm select-text
-                `}
-                onMouseEnter={() => setIsInTextArea(true)}
-                onMouseLeave={() => setIsInTextArea(false)}
-                onMouseUp={handleTextSelection}
+                className="text-lg leading-relaxed text-foreground select-text relative z-20 p-4 rounded-lg transition-all duration-300"
+                style={{ 
+                  userSelect: hasStarted ? 'text' : 'none',
+                  cursor: isInTextArea && hasStarted ? 'none' : 'default',
+                  background: isInTextArea ? 'rgba(var(--primary) / 0.02)' : 'transparent',
+                  border: isInTextArea ? '1px solid rgba(var(--primary) / 0.1)' : '1px solid transparent'
+                }}
               >
-                {renderAnnotatedText()}
+                {renderText()}
               </div>
             </Card>
 
@@ -821,144 +1177,275 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
                   </p>
                   <Button 
                     onClick={() => setShowRefinedPrompt(true)}
-                    className="bg-gradient-to-r from-primary to-primary-glow"
+                    className="bg-gradient-primary hover:opacity-90"
                   >
                     <Zap className="w-4 h-4 mr-2" />
-                    Generate Refined Prompt
+                    Flush It!
                   </Button>
                 </motion.div>
               )}
             </AnimatePresence>
           </div>
 
-          {/* Sidebar with Analytics */}
-          <div className="space-y-6">
-            {/* Stats Panel */}
-            <Card className="p-6 bg-gradient-to-br from-card to-card/50 border border-border/50">
-              <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
-                <BarChart3 className="w-5 h-5" />
-                Analytics
-              </h3>
+          {/* Analytics Sidebar - 1 column */}
+          <div className="space-y-4">
+            <Card className="p-4 bg-gradient-to-br from-primary/5 to-accent/5 border-primary/20">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-foreground">Analytics</h3>
+                <BarChart3 className="w-5 h-5 text-primary" />
+              </div>
               
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Coverage</span>
-                    <span className="font-medium">{currentStats.coverage}%</span>
-                  </div>
-                  <Progress value={currentStats.coverage} className="h-2" />
+              <div className="space-y-3">
+                <div className="text-center p-4 bg-muted/30 rounded-lg">
+                  <div className="text-3xl font-bold text-primary">{currentStats.coverage}%</div>
+                  <div className="text-sm text-muted-foreground">Annotated</div>
                 </div>
                 
-                <div className="grid grid-cols-3 gap-2 text-xs">
-                  <div className="text-center p-2 rounded-lg bg-gradient-to-br from-red-500/10 to-orange-500/10 border border-red-500/20">
-                    <div className="font-bold text-red-500">{currentStats.hotPercentage}%</div>
-                    <div className="text-muted-foreground">Hot</div>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-muted-foreground">🔴 Enhanced</span>
+                    <span className="font-medium">{currentStats.hotPercentage}%</span>
                   </div>
-                  <div className="text-center p-2 rounded-lg bg-gradient-to-br from-slate-500/10 to-gray-500/10 border border-slate-500/20">
-                    <div className="font-bold text-slate-500">{currentStats.neutralPercentage}%</div>
-                    <div className="text-muted-foreground">Neutral</div>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-muted-foreground">⚪ Neutral</span>
+                    <span className="font-medium">{currentStats.neutralPercentage}%</span>
                   </div>
-                  <div className="text-center p-2 rounded-lg bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border border-blue-500/20">
-                    <div className="font-bold text-blue-500">{currentStats.flushPercentage}%</div>
-                    <div className="text-muted-foreground">Flush</div>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-muted-foreground">🔵 Flushed</span>
+                    <span className="font-medium">{currentStats.flushPercentage}%</span>
                   </div>
                 </div>
 
-                <div className="pt-2 border-t border-border/50">
-                  <div className="text-sm text-muted-foreground">
-                    Annotations: <span className="font-medium text-foreground">{currentStats.annotationCount}</span>
-                  </div>
+                <div className="pt-4 border-t border-muted text-center">
+                  <div className="text-lg font-semibold text-foreground">{currentStats.annotationCount}</div>
+                  <div className="text-xs text-muted-foreground">Total Annotations</div>
                 </div>
               </div>
             </Card>
 
-            {/* Action Buttons */}
-            <Card className="p-6 space-y-3">
-              <Button 
-                onClick={() => setShowRefinedPrompt(true)}
-                disabled={annotations.length === 0}
-                className="w-full bg-gradient-to-r from-primary to-primary-glow"
-              >
-                <Wand2 className="w-4 h-4 mr-2" />
-                Generate Refined Prompt
-              </Button>
-              
-              <div className="grid grid-cols-2 gap-2">
-                <Button variant="outline" onClick={undoLastAnnotation} disabled={annotations.length === 0 && undoStack.length === 0}>
-                  <RefreshCw className="w-3 h-3 mr-1" />
+            {/* Controls */}
+            <Card className="p-6 bg-gradient-to-br from-accent/5 to-primary-glow/5 border-accent/20">
+              <h3 className="text-lg font-semibold text-foreground mb-4">Controls</h3>
+              <div className="space-y-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={undoLastAnnotation}
+                  disabled={annotations.length === 0 && undoStack.length === 0}
+                  className="w-full flex items-center gap-2"
+                >
+                  <RefreshCw className="w-4 h-4" />
                   Undo
                 </Button>
-                <Button variant="outline" onClick={clearAnnotations} disabled={annotations.length === 0}>
-                  <X className="w-3 h-3 mr-1" />
-                  Clear
-                </Button>
-              </div>
-              
-              <Button variant="outline" onClick={() => setSoundEnabled(!soundEnabled)} className="w-full">
-                <Volume2 className={`w-4 h-4 mr-2 ${!soundEnabled ? 'opacity-50' : ''}`} />
-                Sound {soundEnabled ? 'On' : 'Off'}
+                 <Button
+                   variant="outline"
+                   size="sm"
+                   onClick={clearAnnotations}
+                   disabled={annotations.length === 0}
+                   className="w-full flex items-center gap-2"
+                 >
+                   <X className="w-4 h-4" />
+                   Clear All
+                 </Button>
+                 <Button
+                   onClick={() => setShowRefinedPrompt(true)}
+                   disabled={annotations.length === 0}
+                   className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white flex items-center gap-2"
+                 >
+                   <Sparkles className="w-4 h-4" />
+                   Generate Refined Prompt
+                 </Button>
+               </div>
+             </Card>
+
+            {/* Export Options */}
+            {annotations.length > 0 && (
+              <Card className="p-6 bg-gradient-to-br from-accent/5 to-primary-glow/5 border-accent/20">
+                <h3 className="text-lg font-semibold text-foreground mb-4">Export</h3>
+                <div className="space-y-3">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => {
+                      const exportData = {
+                        annotations,
+                        analytics: currentStats,
+                        refinedPrompt,
+                        timestamp: new Date().toISOString()
+                      };
+                      navigator.clipboard.writeText(JSON.stringify(exportData, null, 2));
+                    }}
+                    className="w-full"
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    JSON Data
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => navigator.clipboard.writeText(refinedPrompt)}
+                    className="w-full"
+                    disabled={!refinedPrompt}
+                  >
+                    <Copy className="w-4 h-4 mr-2" />
+                    Refined Prompt
+                  </Button>
+                </div>
+              </Card>
+            )}
+
+            {/* Continue to Full Experience */}
+            <Card className="p-6 bg-gradient-to-br from-primary-glow/5 to-primary/5 border-primary-glow/20">
+              <h3 className="text-lg font-semibold text-foreground mb-3">Ready for More?</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Experience the full Magic Pencil interface with advanced features.
+              </p>
+              <Button 
+                onClick={onStartAnnotating}
+                className="w-full bg-gradient-primary hover:opacity-90"
+              >
+                <Wand2 className="w-4 h-4 mr-2" />
+                Full Experience
               </Button>
             </Card>
           </div>
         </div>
       </div>
 
-      {/* Refined Prompt Modal */}
+      {/* Comment Modal */}
       <AnimatePresence>
-        {showRefinedPrompt && (
+        {showCommentModal && activeWordForComment !== null && (
           <motion.div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={() => setShowRefinedPrompt(false)}
+            onClick={() => {
+              setShowCommentModal(false);
+              setActiveWordForComment(null);
+              setCommentInputText('');
+            }}
           >
             <motion.div
-              className="bg-card rounded-2xl p-6 max-w-4xl w-full max-h-[85vh] overflow-auto border shadow-2xl"
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              onClick={(e) => e.stopPropagation()}
+              className="bg-background p-6 rounded-2xl border border-primary/20 max-w-md w-full mx-4 shadow-2xl"
+              initial={{ scale: 0.8, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.8, opacity: 0, y: 20 }}
+              onClick={e => e.stopPropagation()}
             >
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
-                  <Wand2 className="w-5 h-5" />
-                  Refined Prompt
-                </h3>
+                <h3 className="text-lg font-semibold text-foreground">Add Comment</h3>
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setShowRefinedPrompt(false)}
+                  onClick={() => {
+                    setShowCommentModal(false);
+                    setActiveWordForComment(null);
+                    setCommentInputText('');
+                  }}
+                  className="p-1"
                 >
                   <X className="w-4 h-4" />
                 </Button>
               </div>
               
-              <div className="bg-background rounded-lg p-4 border">
-                <Textarea
-                  value={generateRefinedPrompt()}
-                  readOnly
-                  className="min-h-80 resize-none border-0 p-0 focus:ring-0 text-sm leading-relaxed"
-                />
+              <div className="mb-4 p-3 bg-muted/30 rounded-lg text-sm text-muted-foreground">
+                "{demoWords[activeWordForComment]}"
               </div>
               
-              <div className="flex gap-2 mt-4">
+              <Textarea
+                value={commentInputText}
+                onChange={(e) => setCommentInputText(e.target.value)}
+                className="mb-4"
+                rows={3}
+                placeholder="Add your thoughts about this word..."
+                autoFocus
+              />
+              
+              <div className="flex gap-2">
                 <Button
-                  onClick={() => {
-                    navigator.clipboard.writeText(generateRefinedPrompt());
-                    setShowRefinedPrompt(false);
-                  }}
+                  onClick={handleCommentSubmit}
                   className="flex-1"
                 >
-                  <Copy className="w-4 h-4 mr-2" />
-                  Copy & Close
+                  <MessageCircle className="w-4 h-4 mr-2" />
+                  Save Comment
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setShowCommentModal(false);
+                    setActiveWordForComment(null);
+                    setCommentInputText('');
+                  }}
+                >
+                  Cancel
                 </Button>
               </div>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+
+      {/* Refined Prompt Modal */}
+      <AnimatePresence>
+        {showRefinedPrompt && (
+          <motion.div
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowRefinedPrompt(false)}
+          >
+            <motion.div
+              className="bg-background p-8 rounded-2xl border border-primary/20 max-w-2xl w-full mx-4 shadow-2xl"
+              initial={{ scale: 0.8, opacity: 0, rotateY: 15 }}
+              animate={{ scale: 1, opacity: 1, rotateY: 0 }}
+              exit={{ scale: 0.8, opacity: 0, rotateY: -15 }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-2xl font-bold text-foreground">✨ Refined Prompt</h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowRefinedPrompt(false)}
+                  className="p-2"
+                >
+                  <X className="w-5 h-5" />
+                </Button>
+              </div>
+              
+              <div className="mb-6 p-4 bg-gradient-to-br from-primary/10 via-accent/5 to-primary-glow/10 rounded-lg border border-primary/20">
+                <pre className="text-sm text-foreground whitespace-pre-wrap font-mono">
+                  {refinedPrompt}
+                </pre>
+              </div>
+              
+              <div className="flex gap-3">
+                <Button
+                  onClick={() => navigator.clipboard.writeText(refinedPrompt)}
+                  className="flex-1"
+                >
+                  <Copy className="w-4 h-4 mr-2" />
+                  Copy Prompt
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowRefinedPrompt(false);
+                    onStartAnnotating();
+                  }}
+                  className="flex-1"
+                >
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Apply & Continue
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </section>
   );
 };
 
