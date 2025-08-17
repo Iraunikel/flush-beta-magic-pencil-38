@@ -70,6 +70,15 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
   const [brushSize, setBrushSize] = useState(20);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [hoveredWordIndex, setHoveredWordIndex] = useState<number | null>(null);
+  const [showBanner, setShowBanner] = useState(true);
+  const [isInTextArea, setIsInTextArea] = useState(false);
+  const [autoSelectEnabled, setAutoSelectEnabled] = useState(false);
+  const [gestureDetection, setGestureDetection] = useState({ 
+    velocityY: 0, 
+    direction: 'none' as 'up' | 'down' | 'none',
+    swingCount: 0,
+    lastSwingTime: 0 
+  });
   
   // Motion values for advanced interactions
   const mouseX = useMotionValue(0);
@@ -201,6 +210,59 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
     return prompt;
   }, [annotations]);
 
+  // Gesture-based mode switching
+  const detectGesture = useCallback((velocityY: number) => {
+    const now = Date.now();
+    const threshold = 15; // Velocity threshold for gesture detection
+    
+    if (Math.abs(velocityY) > threshold) {
+      const newDirection = velocityY < 0 ? 'up' : 'down';
+      
+      setGestureDetection(prev => {
+        // Reset if direction changed or too much time passed
+        if (prev.direction !== newDirection || now - prev.lastSwingTime > 800) {
+          return {
+            velocityY,
+            direction: newDirection,
+            swingCount: 1,
+            lastSwingTime: now
+          };
+        }
+        
+        const newSwingCount = prev.swingCount + 1;
+        
+        // Double swing detection
+        if (newSwingCount === 2 && now - prev.lastSwingTime < 600) {
+          // Double swing up = Hot mode
+          if (newDirection === 'up') {
+            setSelectedMode('hot');
+            playSound('complete');
+          }
+          // Double swing down = Flush mode  
+          else if (newDirection === 'down') {
+            setSelectedMode('flush');
+            playSound('complete');
+          }
+          
+          // Reset after successful gesture
+          return {
+            velocityY: 0,
+            direction: 'none',
+            swingCount: 0,
+            lastSwingTime: 0
+          };
+        }
+        
+        return {
+          velocityY,
+          direction: newDirection,
+          swingCount: newSwingCount,
+          lastSwingTime: now
+        };
+      });
+    }
+  }, [playSound]);
+
   // Advanced GSAP animations with particle system
   useEffect(() => {
     const ctx = gsap.context(() => {
@@ -272,11 +334,24 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
     };
   }, [hasStarted]);
 
-  // Revolutionary cursor transformation and tracking
+  // Enhanced cursor tracking with gesture detection and text area scope
   useEffect(() => {
+    let lastY = 0;
+    let lastTime = Date.now();
+    
     const handleMouseMove = (e: MouseEvent) => {
       const x = e.clientX;
       const y = e.clientY;
+      const now = Date.now();
+      
+      // Calculate velocity for gesture detection
+      if (isInTextArea && hasStarted) {
+        const deltaY = y - lastY;
+        const deltaTime = now - lastTime;
+        const velocityY = deltaTime > 0 ? deltaY / deltaTime * 16.67 : 0; // Normalize to 60fps
+        
+        detectGesture(velocityY);
+      }
       
       setCursorPosition({ x, y });
       mouseX.set(x);
@@ -288,7 +363,7 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
       );
       setBrushSize(Math.max(15, Math.min(40, 20 + velocity * 0.5)));
       
-      if (pencilRef.current) {
+      if (pencilRef.current && isInTextArea) {
         // Advanced pencil physics with tilt based on mode
         const tilt = selectedMode === 'hot' ? 25 : selectedMode === 'flush' ? -25 : velocity * 0.3;
         
@@ -309,6 +384,9 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
           ]);
         }
       }
+      
+      lastY = y;
+      lastTime = now;
     };
 
     const handleMouseDown = () => setIsDragging(true);
@@ -317,20 +395,56 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
       setPaintTrail([]);
     };
 
-    if (hasStarted) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mousedown', handleMouseDown);
-      document.addEventListener('mouseup', handleMouseUp);
-      document.body.style.cursor = 'none';
-    }
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mousedown', handleMouseDown);
+    document.addEventListener('mouseup', handleMouseUp);
 
     return () => {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mousedown', handleMouseDown);
       document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [selectedMode, hasStarted, isDragging, cursorPosition, mouseX, mouseY, isInTextArea, detectGesture]);
+
+  // Handle text area entry/exit for cursor scoping
+  useEffect(() => {
+    const textElement = textRef.current;
+    if (!textElement) return;
+
+    const handleMouseEnter = () => {
+      setIsInTextArea(true);
+      if (hasStarted && !showBanner) {
+        document.body.style.cursor = 'none';
+        setAutoSelectEnabled(true);
+      }
+    };
+
+    const handleMouseLeave = () => {
+      setIsInTextArea(false);
+      document.body.style.cursor = 'auto';
+      setAutoSelectEnabled(false);
+    };
+
+    const handleClick = () => {
+      if (showBanner) {
+        setShowBanner(false);
+        setHasStarted(true);
+        setAutoSelectEnabled(true);
+        document.body.style.cursor = 'none';
+      }
+    };
+
+    textElement.addEventListener('mouseenter', handleMouseEnter);
+    textElement.addEventListener('mouseleave', handleMouseLeave);
+    textElement.addEventListener('click', handleClick);
+
+    return () => {
+      textElement.removeEventListener('mouseenter', handleMouseEnter);
+      textElement.removeEventListener('mouseleave', handleMouseLeave);
+      textElement.removeEventListener('click', handleClick);
       document.body.style.cursor = 'auto';
     };
-  }, [selectedMode, hasStarted, isDragging, cursorPosition, mouseX, mouseY]);
+  }, [hasStarted, showBanner]);
 
   // Epic multi-stage celebration with physics
   const triggerCelebration = () => {
@@ -399,14 +513,19 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
     );
   };
 
-  // Revolutionary paint-flow text selection with word-by-word animation
-  const handleWordClick = (wordIndex: number, word: string) => {
-    if (!hasStarted) {
+
+  // Enhanced word annotation for auto-selection
+  const handleWordAnnotation = useCallback((wordIndex: number, word: string, isClick = false) => {
+    // Check if word is already annotated
+    if (annotations.some(a => a.wordIndex === wordIndex)) return;
+    
+    if (!hasStarted && isClick) {
       setHasStarted(true);
+      setShowBanner(false);
       gsap.killTweensOf('.cta-pulse');
     }
 
-    playSound('paint');
+    playSound(isClick ? 'paint' : 'hover');
     
     // Calculate text position for this word
     let charStart = 0;
@@ -488,7 +607,7 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
         duration: 0.6,
         ease: "elastic.out(1, 0.8)"
       });
-  };
+  }, [selectedMode, hasStarted, annotations, cursorPosition, playSound]);
 
   // Check for focus achievement
   useEffect(() => {
@@ -518,7 +637,19 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
               }}
               onMouseEnter={() => {
                 setHoveredWordIndex(index);
-                if (!annotation) playSound('hover');
+                
+                if (!annotation) {
+                  playSound('hover');
+                  
+                  // Auto-select after brief delay when in auto mode
+                  if (autoSelectEnabled && hasStarted && !showBanner) {
+                    setTimeout(() => {
+                      if (hoveredWordIndex === index && !annotations.some(a => a.wordIndex === index)) {
+                        handleWordAnnotation(index, word);
+                      }
+                    }, 200);
+                  }
+                }
                 
                 // Breathing effect on hover using GSAP
                 gsap.timeline()
@@ -536,7 +667,17 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
               onMouseLeave={() => {
                 setHoveredWordIndex(null);
               }}
-              onClick={() => handleWordClick(index, word)}
+              onClick={() => {
+                if (showBanner) {
+                  setShowBanner(false);
+                  setHasStarted(true);
+                  setAutoSelectEnabled(true);
+                }
+                handleWordAnnotation(index, word, true);
+                // Click toggles auto-select off temporarily
+                setAutoSelectEnabled(false);
+                setTimeout(() => setAutoSelectEnabled(true), 1000);
+              }}
               whileHover={{
                 y: -2,
                 transition: { duration: 0.2, ease: "easeOut" }
@@ -651,8 +792,8 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
 
   return (
     <section ref={containerRef} className="py-8 px-6 relative">
-      {/* Magic Pencil Cursor */}
-      {hasStarted && (
+      {/* Magic Pencil Cursor - Only in text area */}
+      {hasStarted && isInTextArea && (
         <div 
           ref={pencilRef}
           className="fixed pointer-events-none z-50"
@@ -664,18 +805,31 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
               style={{ filter: modeStyles[selectedMode].sparkle }}
             />
             
-            {/* Mini palette on tip */}
+            {/* Enhanced palette with gesture feedback */}
             <div className="absolute -top-8 -left-2 flex gap-1 opacity-80">
               <div 
                 className={`w-2 h-2 rounded-full border ${selectedMode === 'hot' ? 'bg-red-400 border-red-400 shadow-lg' : 'bg-red-400/30 border-red-400/50'}`}
+                style={{
+                  transform: gestureDetection.direction === 'up' && gestureDetection.swingCount > 0 ? 'translateY(-2px) scale(1.2)' : 'none'
+                }}
               />
               <div 
                 className={`w-2 h-2 rounded-full border ${selectedMode === 'neutral' ? 'bg-slate-400 border-slate-400 shadow-lg' : 'bg-slate-400/30 border-slate-400/50'}`}
               />
               <div 
                 className={`w-2 h-2 rounded-full border ${selectedMode === 'flush' ? 'bg-blue-400 border-blue-400 shadow-lg' : 'bg-blue-400/30 border-blue-400/50'}`}
+                style={{
+                  transform: gestureDetection.direction === 'down' && gestureDetection.swingCount > 0 ? 'translateY(2px) scale(1.2)' : 'none'
+                }}
               />
             </div>
+            
+            {/* Gesture hint */}
+            {gestureDetection.swingCount > 0 && (
+              <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 text-xs bg-background/90 px-2 py-1 rounded-full border">
+                {gestureDetection.direction === 'up' ? '↑ Hot' : '↓ Flush'}
+              </div>
+            )}
             
             {/* Floating sparkles around pencil */}
             <Sparkles className="magic-sparkle absolute -top-2 -right-2 w-3 h-3 text-primary-glow opacity-60" />
@@ -744,36 +898,45 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
 
             {/* Interactive Text Area */}
             <Card className="p-6 bg-gradient-to-br from-background via-primary/3 to-accent/3 border-primary/20 min-h-[400px] relative">
-              {/* Call to action overlay */}
-              {!hasStarted && (
-                <motion.div
-                  className="cta-pulse absolute inset-0 flex items-center justify-center bg-background/90 rounded-lg backdrop-blur-sm z-10"
-                  initial={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                >
-                  <div className="text-center">
-                    <motion.div
-                      animate={{ 
-                        y: [0, -10, 0],
-                        opacity: [0.7, 1, 0.7]
-                      }}
-                      transition={{ 
-                        duration: 2,
-                        repeat: Infinity,
-                        ease: "easeInOut"
-                      }}
-                    >
-                      <Wand2 className="w-12 h-12 text-primary mx-auto mb-4" />
-                      <p className="text-lg font-medium text-foreground mb-2">
-                        ✨ Start painting your thoughts
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        Select text below to begin annotation
-                      </p>
-                    </motion.div>
-                  </div>
-                </motion.div>
-              )}
+              {/* Enhanced Banner with blur background */}
+              <AnimatePresence>
+                {showBanner && (
+                  <motion.div
+                    className="absolute inset-0 flex items-center justify-center z-10 rounded-lg"
+                    initial={{ opacity: 1 }}
+                    exit={{ opacity: 0, scale: 1.1 }}
+                    transition={{ duration: 0.8 }}
+                  >
+                    {/* Blur background text */}
+                    <div className="absolute inset-0 bg-background/80 backdrop-blur-md rounded-lg" />
+                    
+                    <div className="relative text-center p-8 bg-gradient-to-br from-primary/10 via-accent/10 to-primary-glow/10 border-2 border-primary/30 rounded-2xl backdrop-blur-xl">
+                      <motion.div
+                        animate={{ 
+                          y: [0, -10, 0],
+                          opacity: [0.7, 1, 0.7]
+                        }}
+                        transition={{ 
+                          duration: 2,
+                          repeat: Infinity,
+                          ease: "easeInOut"
+                        }}
+                      >
+                        <Wand2 className="w-12 h-12 text-primary mx-auto mb-4" style={{ filter: modeStyles[selectedMode].sparkle }} />
+                        <h3 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent mb-2">
+                          Start highlighting
+                        </h3>
+                        <p className="text-base text-muted-foreground mb-4">
+                          Click to begin annotation
+                        </p>
+                        <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground/70">
+                          <span>💡 Pro tip: Double swipe ↑ for Hot, ↓ for Flush</span>
+                        </div>
+                      </motion.div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
               
               <div className="mb-6 flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-foreground">AI Response</h3>
@@ -785,8 +948,13 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
               
               <div
                 ref={textRef}
-                className="text-lg leading-relaxed text-foreground cursor-crosshair select-text relative z-20"
-                style={{ userSelect: hasStarted ? 'text' : 'none' }}
+                className="text-lg leading-relaxed text-foreground select-text relative z-20 p-4 rounded-lg transition-all duration-300"
+                style={{ 
+                  userSelect: hasStarted ? 'text' : 'none',
+                  cursor: isInTextArea && hasStarted ? 'none' : 'default',
+                  background: isInTextArea ? 'rgba(var(--primary) / 0.02)' : 'transparent',
+                  border: isInTextArea ? '1px solid rgba(var(--primary) / 0.1)' : '1px solid transparent'
+                }}
               >
                 {renderText()}
               </div>
