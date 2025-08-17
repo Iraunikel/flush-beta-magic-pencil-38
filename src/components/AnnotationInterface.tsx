@@ -340,10 +340,12 @@ const AnnotationInterface: React.FC<AnnotationInterfaceProps> = ({
   return (
     <div className="space-y-6">
       {/* Annotation Controls */}
-      <div className="flex flex-wrap items-center gap-3 p-4 bg-card rounded-lg border">
-        <div className="flex items-center gap-2">
-          <Palette className="w-4 h-4 text-muted-foreground" />
-          <span className="text-sm font-medium text-foreground">Mode:</span>
+      <div className="flex flex-wrap items-center gap-4 p-5 bg-card rounded-xl border shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="w-6 h-6 rounded-full bg-gradient-to-r from-annotation-high to-annotation-low flex items-center justify-center">
+            <Palette className="w-3 h-3 text-white" />
+          </div>
+          <span className="text-sm font-semibold text-foreground">Choose Relevance:</span>
         </div>
         
         <div className="flex gap-2">
@@ -353,9 +355,15 @@ const AnnotationInterface: React.FC<AnnotationInterfaceProps> = ({
               variant={selectedRelevance === level.key ? "default" : "outline"}
               size="sm"
               onClick={() => setSelectedRelevance(level.key as any)}
-              className="h-8 text-xs"
+              className={`
+                h-9 text-xs font-medium transition-all duration-200 
+                ${selectedRelevance === level.key 
+                  ? 'bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/25' 
+                  : `border-annotation-${level.color}/30 hover:bg-annotation-${level.color}-bg hover:border-annotation-${level.color}/50`
+                }
+              `}
             >
-              <span className="mr-1">{level.emoji}</span>
+              <span className="mr-1.5">{level.emoji}</span>
               {level.label}
             </Button>
           ))}
