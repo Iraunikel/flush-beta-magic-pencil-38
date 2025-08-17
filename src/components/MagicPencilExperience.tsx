@@ -239,61 +239,60 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
 
   // Enhanced text selection handler for range selection
   const handleTextSelection = useCallback(() => {
+    if (isDragging) return;
+    
     const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0 || isDragging) return;
+    if (!selection || selection.rangeCount === 0) return;
 
     const range = selection.getRangeAt(0);
     const selectedText = range.toString().trim();
     
-    if (!selectedText || !textRef.current) return;
+    if (!selectedText || selectedText.length === 0) return;
 
-    // Calculate text indices using proper range handling
-    const textContent = textRef.current.textContent || '';
-    
-    // Get the start and end positions relative to the text container
-    let selectionStart = -1;
-    let selectionEnd = -1;
-    
-    try {
-      // Create a temporary range to find the actual position in the text
-      const containerRange = document.createRange();
-      containerRange.selectNodeContents(textRef.current);
+    console.log('Selected text:', selectedText);
+
+    // Simple approach: find the text in the demo text string
+    const textStart = demoText.indexOf(selectedText);
+    let selectionStart = textStart;
+    let selectionEnd = textStart + selectedText.length;
+
+    // If direct match fails, try to find a partial match
+    if (textStart === -1) {
+      // Try to find the text with some flexibility for whitespace
+      const normalizedSelected = selectedText.replace(/\s+/g, ' ');
+      const normalizedDemo = demoText.replace(/\s+/g, ' ');
+      const flexibleStart = normalizedDemo.indexOf(normalizedSelected);
       
-      // Find start position
-      const startRange = containerRange.cloneRange();
-      startRange.setEnd(range.startContainer, range.startOffset);
-      selectionStart = startRange.toString().length;
+      if (flexibleStart === -1) {
+        console.warn('Could not find selected text in content');
+        selection.removeAllRanges();
+        return;
+      }
       
-      // Find end position  
-      const endRange = containerRange.cloneRange();
-      endRange.setEnd(range.endContainer, range.endOffset);
-      selectionEnd = endRange.toString().length;
-      
-      containerRange.detach();
-      startRange.detach();
-      endRange.detach();
-    } catch (error) {
-      console.warn('Error calculating selection range:', error);
-      return;
+      // Calculate the actual positions in the original text
+      selectionStart = flexibleStart;
+      selectionEnd = flexibleStart + normalizedSelected.length;
     }
 
-    if (selectionStart === -1 || selectionEnd === -1 || selectionStart >= selectionEnd) return;
+    console.log('Selection range:', selectionStart, '-', selectionEnd);
 
-    // For eraser mode, remove any overlapping annotations
+    // For eraser mode, remove overlapping annotations
     if (selectedMode === 'eraser') {
-      setAnnotations(prev => prev.filter(annotation => {
-        return !(annotation.start <= selectionStart && annotation.end >= selectionEnd) &&
-               !(selectionStart <= annotation.start && selectionEnd >= annotation.end) &&
-               !(selectionStart < annotation.end && selectionEnd > annotation.start);
-      }));
+      setAnnotations(prev => {
+        const filtered = prev.filter(annotation => {
+          const overlap = !(annotation.end <= selectionStart || annotation.start >= selectionEnd);
+          return !overlap;
+        });
+        console.log('Removed overlapping annotations, remaining:', filtered.length);
+        return filtered;
+      });
       
-      // Clear selection
       selection.removeAllRanges();
       playSound('select');
       return;
     }
 
-    // Create new annotation for the selected range
+    // Create new annotation
     const newAnnotation: AnnotationData = {
       id: `annotation-${Date.now()}-${Math.random()}`,
       start: selectionStart,
@@ -303,8 +302,14 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
       intensity: selectedMode === 'hot' ? 100 : selectedMode === 'flush' ? 0 : 50
     };
 
+    console.log('Creating annotation:', newAnnotation);
+
     // Add the annotation
-    setAnnotations(prev => [...prev, newAnnotation]);
+    setAnnotations(prev => {
+      const updated = [...prev, newAnnotation];
+      console.log('Total annotations:', updated.length);
+      return updated;
+    });
     
     // Show comment modal for this range
     setActiveAnnotationForComment(newAnnotation.id);
