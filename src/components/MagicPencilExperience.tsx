@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useLayoutEffect } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
 import { gsap } from 'gsap';
 // Using Framer Motion and GSAP for cutting-edge animations
@@ -91,6 +91,9 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
   const containerRef = useRef<HTMLDivElement>(null);
   const commentModalRef = useRef<HTMLDivElement>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
+  const lineRectsRef = useRef<Array<{ top: number; bottom: number; firstIndex: number; firstRect: DOMRect }>>([]);
+  const lastLineIndexRef = useRef<number>(-1);
+  const snapUntilRef = useRef<number>(0);
 
   // Enhanced mode styles with temperature scale
   const modeStyles = {
@@ -309,6 +312,59 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
     return;
   }, []);
 
+  const recomputeLineRects = useCallback(() => {
+    if (!textRef.current) return;
+    const lines: Array<{ top: number; bottom: number; firstIndex: number; firstRect: DOMRect }> = [];
+    const isPunct = (w: string) => /^[.,:;!?]+$/.test(w);
+
+    let currentTop: number | null = null;
+    let currentBottom: number | null = null;
+    let firstIndex: number | null = null;
+
+    for (let i = 0; i < demoWords.length; i++) {
+      const el = document.querySelector(`.word-${i}`) as HTMLElement | null;
+      if (!el) continue;
+      const r = el.getBoundingClientRect();
+      const top = Math.round(r.top);
+
+      // Start a new line bucket if y has changed significantly
+      if (currentTop === null || Math.abs(top - currentTop) > 8) {
+        if (currentTop !== null && firstIndex !== null) {
+          const firstEl = document.querySelector(`.word-${firstIndex}`) as HTMLElement;
+          const fr = firstEl.getBoundingClientRect();
+          lines.push({ top: currentTop, bottom: currentBottom || fr.bottom, firstIndex, firstRect: fr });
+        }
+        currentTop = top;
+        currentBottom = r.bottom;
+        // choose first non-punctuation token for a line
+        let j = i;
+        while (j < demoWords.length) {
+          const w = demoWords[j];
+          if (!isPunct(w)) break;
+          j += 1;
+        }
+        firstIndex = j;
+      } else {
+        if (r.bottom > (currentBottom || r.bottom)) currentBottom = r.bottom;
+      }
+    }
+
+    if (currentTop !== null && firstIndex !== null) {
+      const firstEl = document.querySelector(`.word-${firstIndex}`) as HTMLElement;
+      const fr = firstEl.getBoundingClientRect();
+      lines.push({ top: currentTop, bottom: currentBottom || fr.bottom, firstIndex, firstRect: fr });
+    }
+
+    lineRectsRef.current = lines;
+  }, []);
+
+  useLayoutEffect(() => {
+    recomputeLineRects();
+    const onResize = () => recomputeLineRects();
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [recomputeLineRects, annotations]);
+
   // Advanced GSAP animations with particle system
   useEffect(() => {
     const ctx = gsap.context(() => {
@@ -403,24 +459,45 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
       setBrushSize(Math.max(15, Math.min(40, 20 + velocity * 0.5)));
       
       if (pencilRef.current && isInTextArea) {
-        // Advanced pencil physics with tilt based on mode
         const tilt = selectedMode === 'hot' ? 25 : selectedMode === 'flush' ? -25 : velocity * 0.3;
-        
-        gsap.to(pencilRef.current, {
-          x: x - 16,
-          y: y - 16,
-          rotation: tilt,
-          scale: isDragging ? 1.2 : 1,
-          duration: 0.15,
-          ease: "power3.out"
-        });
 
-        // Paint trail effect during interaction
+        // respect snap window
+        if (Date.now() > snapUntilRef.current) {
+          gsap.to(pencilRef.current, {
+            x: x - 16,
+            y: y - 16,
+            rotation: tilt,
+            scale: isDragging ? 1.2 : 1,
+            duration: 0.15,
+            ease: 'power3.out'
+          });
+        }
+
         if (isDragging) {
           setPaintTrail(prev => [
-            ...prev.slice(-20), // Keep last 20 points
+            ...prev.slice(-20),
             { x, y, timestamp: Date.now() }
           ]);
+        }
+
+        // line-aware snapping
+        const lines = lineRectsRef.current;
+        if (lines.length > 0) {
+          const idx = lines.findIndex(l => y >= l.top && y <= l.bottom);
+          if (idx !== -1 && idx !== lastLineIndexRef.current) {
+            lastLineIndexRef.current = idx;
+            const target = lines[idx];
+            const cx = target.firstRect.left + target.firstRect.width / 2;
+            const cy = target.firstRect.top + target.firstRect.height / 2;
+            snapUntilRef.current = Date.now() + 160;
+            gsap.to(pencilRef.current, { x: cx - 16, y: cy - 16, duration: 0.15, ease: 'power3.out' });
+            if (autoSelectEnabled && hasStarted && selectedMode !== 'eraser') {
+              const wi = target.firstIndex;
+              if (!annotations.some(a => a.wordIndex === wi)) {
+                handleWordAnnotation(wi, demoWords[wi]);
+              }
+            }
+          }
         }
       }
       
@@ -443,7 +520,7 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
       document.removeEventListener('mousedown', handleMouseDown);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [selectedMode, hasStarted, isDragging, cursorPosition, mouseX, mouseY, isInTextArea, detectGesture]);
+  }, [selectedMode, hasStarted, isDragging, cursorPosition, mouseX, mouseY, isInTextArea, detectGesture, autoSelectEnabled, annotations, handleWordAnnotation]);
 
   // Handle text area entry/exit for cursor scoping
   useEffect(() => {
