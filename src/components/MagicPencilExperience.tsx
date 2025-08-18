@@ -584,39 +584,102 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
   // Enhanced cursor tracking with gesture detection and text area scope
   useEffect(() => {
     let lastY = 0;
+    let lastX = 0;
     let lastTime = Date.now();
+    let lineTransitionActive = false;
     
     const handleMouseMove = (e: MouseEvent) => {
       const x = e.clientX;
       const y = e.clientY;
       const now = Date.now();
       
-      // Gesture detection disabled - using reliable keyboard shortcuts instead
+      // Enhanced gesture detection for smooth line transitions
+      const deltaX = x - lastX;
+      const deltaY = y - lastY;
+      const deltaTime = now - lastTime;
+      const velocity = Math.sqrt(deltaX * deltaX + deltaY * deltaY) / Math.max(deltaTime, 1);
       
       setCursorPosition({ x, y });
       mouseX.set(x);
       mouseY.set(y);
       
-      // Dynamic brush size based on velocity
-      const velocity = Math.sqrt(
-        Math.pow(x - cursorPosition.x, 2) + Math.pow(y - cursorPosition.y, 2)
-      );
-      setBrushSize(Math.max(15, Math.min(40, 20 + velocity * 0.5)));
+      // Adaptive brush size based on velocity
+      setBrushSize(Math.max(15, Math.min(40, 20 + velocity * 0.3)));
       
       if (pencilRef.current && isInTextArea) {
-        const tilt = selectedMode === 'hot' ? 25 : selectedMode === 'flush' ? -25 : velocity * 0.3;
+        const tilt = selectedMode === 'hot' ? 25 : selectedMode === 'flush' ? -25 : velocity * 0.2;
 
-        // respect snap window
-        if (Date.now() > snapUntilRef.current) {
-          gsap.to(pencilRef.current, {
-            x: x - 16,
-            y: y - 16,
-            rotation: tilt,
-            scale: isDragging ? 1.2 : 1,
-            duration: 0.15,
-            ease: 'power3.out'
-          });
+        // Enhanced line-aware movement with predictive transitions
+        const lines = lineRectsRef.current;
+        let shouldSnap = false;
+        let targetX = x - 16;
+        let targetY = y - 16;
+        
+        if (lines.length > 0) {
+          const currentLineIdx = lines.findIndex(l => y >= l.top && y <= l.bottom);
+          
+          // Detect line transitions with hysteresis and direction awareness
+          if (currentLineIdx !== -1 && currentLineIdx !== lastLineIndexRef.current) {
+            const newLine = lines[currentLineIdx];
+            const oldLineIdx = lastLineIndexRef.current;
+            
+            // Check if this is a natural progression (moving down/up logically)
+            const isNaturalProgression = oldLineIdx !== -1 && 
+              ((currentLineIdx === oldLineIdx + 1 && deltaY > 0) || 
+               (currentLineIdx === oldLineIdx - 1 && deltaY < 0));
+            
+            // Enhanced conditions for smooth line snapping
+            if (isNaturalProgression || 
+                Math.abs(deltaY) > 20 || // Significant vertical movement
+                (velocity < 0.5 && Math.abs(y - newLine.top - newLine.firstRect.height/2) < 15)) {
+              
+              lastLineIndexRef.current = currentLineIdx;
+              
+              // Smooth transition to beginning of line (not center)
+              const lineStartX = newLine.firstRect.left - 8; // Slight offset from beginning
+              const lineY = newLine.top + newLine.firstRect.height / 2;
+              
+              targetX = lineStartX - 16;
+              targetY = lineY - 16;
+              shouldSnap = true;
+              lineTransitionActive = true;
+              
+              // Extended but adaptive snap window based on distance
+              const distance = Math.sqrt(Math.pow(targetX - (x - 16), 2) + Math.pow(targetY - (y - 16), 2));
+              snapUntilRef.current = now + Math.min(400, Math.max(200, distance * 2));
+              
+              // Auto-select first word if enabled
+              if (autoSelectEnabled && hasStarted && selectedMode !== 'eraser') {
+                const wi = newLine.firstIndex;
+                if (!annotations.some(a => a.wordIndex === wi)) {
+                  // Delay annotation to allow smooth visual transition
+                  setTimeout(() => handleWordAnnotation(wi, demoWords[wi]), 150);
+                }
+              }
+            }
+          }
         }
+
+        // Respect snap window with enhanced easing
+        const isInSnapWindow = Date.now() <= snapUntilRef.current;
+        
+        if (!isInSnapWindow) {
+          lineTransitionActive = false;
+        }
+        
+        // Apply movement with context-aware easing
+        const duration = shouldSnap ? 0.25 : (lineTransitionActive ? 0.2 : 0.12);
+        const easeType = shouldSnap ? 'power2.out' : (lineTransitionActive ? 'power1.out' : 'power3.out');
+        
+        gsap.to(pencilRef.current, {
+          x: isInSnapWindow ? targetX : x - 16,
+          y: isInSnapWindow ? targetY : y - 16,
+          rotation: tilt,
+          scale: isDragging ? 1.2 : 1,
+          duration,
+          ease: easeType,
+          overwrite: 'auto' // Prevent animation conflicts
+        });
 
         if (isDragging) {
           setPaintTrail(prev => [
@@ -624,28 +687,9 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
             { x, y, timestamp: Date.now() }
           ]);
         }
-
-        // line-aware snapping
-        const lines = lineRectsRef.current;
-        if (lines.length > 0) {
-          const idx = lines.findIndex(l => y >= l.top && y <= l.bottom);
-          if (idx !== -1 && idx !== lastLineIndexRef.current) {
-            lastLineIndexRef.current = idx;
-            const target = lines[idx];
-            const cx = target.firstRect.left + target.firstRect.width / 2;
-            const cy = target.firstRect.top + target.firstRect.height / 2;
-            snapUntilRef.current = Date.now() + 160;
-            gsap.to(pencilRef.current, { x: cx - 16, y: cy - 16, duration: 0.15, ease: 'power3.out' });
-            if (autoSelectEnabled && hasStarted && selectedMode !== 'eraser') {
-              const wi = target.firstIndex;
-              if (!annotations.some(a => a.wordIndex === wi)) {
-                handleWordAnnotation(wi, demoWords[wi]);
-              }
-            }
-          }
-        }
       }
       
+      lastX = x;
       lastY = y;
       lastTime = now;
     };
