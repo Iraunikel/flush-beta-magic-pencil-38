@@ -307,10 +307,155 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
   }, [selectedMode, isInTextArea, hasStarted, playSound]);
 
   // Simplified gesture detection - disabled for reliable interaction
-  const detectGesture = useCallback((velocityY: number) => {
+  const detectGesture = useCallback((velocityyPos: number) => {
     // Gesture detection disabled in favor of keyboard shortcuts
     return;
   }, []);
+
+  // Enhanced word annotation for auto-selection with improved eraser
+  const handleWordAnnotation = useCallback((wordIndex: number, word: string, isClick = false) => {
+    console.log(`Annotation attempt: word=${word}, index=${wordIndex}, mode=${selectedMode}, isClick=${isClick}`);
+    
+    // Handle eraser mode - remove existing annotation
+    if (selectedMode === 'eraser') {
+      const existingAnnotation = annotations.find(a => a.wordIndex === wordIndex);
+      console.log('Eraser mode - existing annotation:', existingAnnotation);
+      
+      if (existingAnnotation) {
+        setUndoStack(prev => [...prev, annotations]);
+        setAnnotations(prev => {
+          const filtered = prev.filter(a => a.wordIndex !== wordIndex);
+          console.log('After erasing:', filtered.length, 'annotations remain');
+          return filtered;
+        });
+        playSound('select');
+        
+        // Force clear all styles immediately - both inline and CSS classes
+        const wordElement = document.querySelector(`.word-${wordIndex}`) as HTMLElement;
+        if (wordElement) {
+          // Clear all inline styles that might have been applied
+          wordElement.style.background = '';
+          wordElement.style.border = '';
+          wordElement.style.boxShadow = '';
+          wordElement.style.color = '';
+          wordElement.style.transform = '';
+          wordElement.style.scale = '';
+          wordElement.style.opacity = '';
+          
+          // Kill any ongoing GSAP animations on this element
+          gsap.killTweensOf(wordElement);
+          
+          // Force reset to default state
+          gsap.set(wordElement, {
+            background: 'transparent',
+            border: '1px solid transparent', 
+            boxShadow: 'none',
+            color: 'inherit',
+            scale: 1,
+            rotation: 0,
+            clearProps: "all"
+          });
+        }
+        
+        // Enhanced visual feedback for erasing
+        gsap.timeline()
+          .to(`.word-${wordIndex}`, {
+            scale: 0.6,
+            opacity: 0.3,
+            rotateZ: -10,
+            duration: 0.3,
+            ease: "power2.out"
+          })
+          .to(`.word-${wordIndex}`, {
+            scale: 1,
+            opacity: 1,
+            rotateZ: 0,
+            duration: 0.4,
+            ease: "elastic.out(1, 0.8)"
+          });
+      }
+      return;
+    }
+    
+    // Prevent duplicate annotations for the same word
+    if (annotations.some(a => a.wordIndex === wordIndex)) {
+      console.log('Word already annotated, skipping');
+      return;
+    }
+    
+    // Create new annotation
+    const wordEl = document.querySelector(`.word-${wordIndex}`) as HTMLElement;
+    if (!wordEl) return;
+    
+    const rect = wordEl.getBoundingClientRect();
+    const textStart = demoText.indexOf(word, wordIndex > 0 ? demoText.indexOf(demoWords[wordIndex - 1]) + demoWords[wordIndex - 1].length : 0);
+    
+    const newAnnotation: AnnotationData = {
+      id: `${Date.now()}-${wordIndex}`,
+      start: textStart,
+      end: textStart + word.length,
+      type: selectedMode as 'hot' | 'neutral' | 'flush',
+      timestamp: Date.now(),
+      wordIndex
+    };
+    
+    console.log('Creating annotation:', newAnnotation);
+    
+    setAnnotations(prev => {
+      // Ensure no duplicates by checking wordIndex
+      const filtered = prev.filter(a => a.wordIndex !== wordIndex);
+      return [...filtered, newAnnotation];
+    });
+    
+    // Enhanced visual feedback with mode-specific effects
+    const style = modeStyles[selectedMode];
+    
+    gsap.timeline()
+      .set(wordEl, {
+        background: style.bg,
+        border: `1px solid ${style.border}`,
+        boxShadow: style.glow,
+        filter: style.sparkle
+      })
+      .from(wordEl, {
+        scale: 0.8,
+        opacity: 0.5,
+        duration: 0.4,
+        ease: "elastic.out(1, 0.6)"
+      })
+      .to(wordEl, {
+        scale: 1.05,
+        duration: 0.2,
+        yoyo: true,
+        repeat: 1,
+        ease: "power2.inOut"
+      });
+    
+    // Create particles for enhanced feedback
+    const particleCount = selectedMode === 'hot' ? 8 : selectedMode === 'flush' ? 5 : 3;
+    const newParticles: ParticleEffect[] = [];
+    
+    for (let i = 0; i < particleCount; i++) {
+      newParticles.push({
+        id: `${Date.now()}-${i}`,
+        x: rect.left + rect.width / 2 + (Math.random() - 0.5) * 30,
+        y: rect.top + rect.height / 2 + (Math.random() - 0.5) * 20,
+        type: selectedMode === 'hot' ? 'sparkle' : selectedMode === 'flush' ? 'paint' : 'confetti',
+        color: selectedMode === 'hot' ? '#ff5733' : selectedMode === 'flush' ? '#3b82f6' : '#94a3b8'
+      });
+    }
+    
+    setParticles(prev => [...prev, ...newParticles]);
+    setStreakCount(prev => prev + 1);
+    
+    // Sound feedback
+    playSound(isClick ? 'select' : 'paint');
+    
+    // Achievement feedback
+    if (streakCount > 0 && streakCount % 5 === 0) {
+      playSound('complete');
+    }
+  }, [selectedMode, annotations, playSound, streakCount, undoStack]);
 
   const recomputeLineRects = useCallback(() => {
     if (!textRef.current) return;
@@ -658,8 +803,6 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
   };
 
 
-  // Enhanced word annotation for auto-selection with improved eraser
-  const handleWordAnnotation = useCallback((wordIndex: number, word: string, isClick = false) => {
     console.log(`Annotation attempt: word=${word}, index=${wordIndex}, mode=${selectedMode}, isClick=${isClick}`);
     
     // Handle eraser mode - remove existing annotation
