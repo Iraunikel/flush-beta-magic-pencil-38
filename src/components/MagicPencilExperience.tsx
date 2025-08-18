@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback, useLayoutEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
 import { gsap } from 'gsap';
 // Using Framer Motion and GSAP for cutting-edge animations
@@ -91,9 +91,6 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
   const containerRef = useRef<HTMLDivElement>(null);
   const commentModalRef = useRef<HTMLDivElement>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
-  const lineRectsRef = useRef<Array<{ top: number; bottom: number; firstIndex: number; firstRect: DOMRect }>>([]);
-  const lastLineIndexRef = useRef<number>(-1);
-  const snapUntilRef = useRef<number>(0);
 
   // Enhanced mode styles with temperature scale
   const modeStyles = {
@@ -312,204 +309,6 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
     return;
   }, []);
 
-  // Enhanced word annotation for auto-selection with improved eraser
-  const handleWordAnnotation = useCallback((wordIndex: number, word: string, isClick = false) => {
-    console.log(`Annotation attempt: word=${word}, index=${wordIndex}, mode=${selectedMode}, isClick=${isClick}`);
-    
-    // Handle eraser mode - remove existing annotation
-    if (selectedMode === 'eraser') {
-      const existingAnnotation = annotations.find(a => a.wordIndex === wordIndex);
-      console.log('Eraser mode - existing annotation:', existingAnnotation);
-      
-      if (existingAnnotation) {
-        setUndoStack(prev => [...prev, annotations]);
-        setAnnotations(prev => {
-          const filtered = prev.filter(a => a.wordIndex !== wordIndex);
-          console.log('After erasing:', filtered.length, 'annotations remain');
-          return filtered;
-        });
-        playSound('select');
-        
-        // Force clear all styles immediately - both inline and CSS classes
-        const wordElement = document.querySelector(`.word-${wordIndex}`) as HTMLElement;
-        if (wordElement) {
-          // Clear all inline styles that might have been applied
-          wordElement.style.background = '';
-          wordElement.style.border = '';
-          wordElement.style.boxShadow = '';
-          wordElement.style.color = '';
-          wordElement.style.transform = '';
-          wordElement.style.scale = '';
-          wordElement.style.opacity = '';
-          
-          // Kill any ongoing GSAP animations on this element
-          gsap.killTweensOf(wordElement);
-          
-          // Force reset to default state
-          gsap.set(wordElement, {
-            background: 'transparent',
-            border: '1px solid transparent', 
-            boxShadow: 'none',
-            color: 'inherit',
-            scale: 1,
-            rotation: 0,
-            clearProps: "all"
-          });
-        }
-        
-        // Enhanced visual feedback for erasing
-        gsap.timeline()
-          .to(`.word-${wordIndex}`, {
-            scale: 0.6,
-            opacity: 0.3,
-            rotateZ: -10,
-            duration: 0.3,
-            ease: "power2.out"
-          })
-          .to(`.word-${wordIndex}`, {
-            scale: 1,
-            opacity: 1,
-            rotateZ: 0,
-            duration: 0.4,
-            ease: "elastic.out(1, 0.8)"
-          });
-      }
-      return;
-    }
-    
-    // Prevent duplicate annotations for the same word
-    if (annotations.some(a => a.wordIndex === wordIndex)) {
-      console.log('Word already annotated, skipping');
-      return;
-    }
-    
-    // Create new annotation
-    const wordEl = document.querySelector(`.word-${wordIndex}`) as HTMLElement;
-    if (!wordEl) return;
-    
-    const rect = wordEl.getBoundingClientRect();
-    const textStart = demoText.indexOf(word, wordIndex > 0 ? demoText.indexOf(demoWords[wordIndex - 1]) + demoWords[wordIndex - 1].length : 0);
-    
-    const newAnnotation: AnnotationData = {
-      id: `${Date.now()}-${wordIndex}`,
-      start: textStart,
-      end: textStart + word.length,
-      type: selectedMode as 'hot' | 'neutral' | 'flush',
-      timestamp: Date.now(),
-      wordIndex
-    };
-    
-    console.log('Creating annotation:', newAnnotation);
-    
-    setAnnotations(prev => {
-      // Ensure no duplicates by checking wordIndex
-      const filtered = prev.filter(a => a.wordIndex !== wordIndex);
-      return [...filtered, newAnnotation];
-    });
-    
-    // Enhanced visual feedback with mode-specific effects
-    const style = modeStyles[selectedMode];
-    
-    gsap.timeline()
-      .set(wordEl, {
-        background: style.bg,
-        border: `1px solid ${style.border}`,
-        boxShadow: style.glow,
-        filter: style.sparkle
-      })
-      .from(wordEl, {
-        scale: 0.8,
-        opacity: 0.5,
-        duration: 0.4,
-        ease: "elastic.out(1, 0.6)"
-      })
-      .to(wordEl, {
-        scale: 1.05,
-        duration: 0.2,
-        yoyo: true,
-        repeat: 1,
-        ease: "power2.inOut"
-      });
-    
-    // Create particles for enhanced feedback
-    const particleCount = selectedMode === 'hot' ? 8 : selectedMode === 'flush' ? 5 : 3;
-    const newParticles: ParticleEffect[] = [];
-    
-    for (let i = 0; i < particleCount; i++) {
-      newParticles.push({
-        id: `${Date.now()}-${i}`,
-        x: rect.left + rect.width / 2 + (Math.random() - 0.5) * 30,
-        y: rect.top + rect.height / 2 + (Math.random() - 0.5) * 20,
-        type: selectedMode === 'hot' ? 'sparkle' : selectedMode === 'flush' ? 'paint' : 'confetti',
-        color: selectedMode === 'hot' ? '#ff5733' : selectedMode === 'flush' ? '#3b82f6' : '#94a3b8'
-      });
-    }
-    
-    setParticles(prev => [...prev, ...newParticles]);
-    setStreakCount(prev => prev + 1);
-    
-    // Sound feedback
-    playSound(isClick ? 'select' : 'paint');
-    
-    // Achievement feedback
-    if (streakCount > 0 && streakCount % 5 === 0) {
-      playSound('complete');
-    }
-  }, [selectedMode, annotations, playSound, streakCount, undoStack]);
-
-  const recomputeLineRects = useCallback(() => {
-    if (!textRef.current) return;
-    const lines: Array<{ top: number; bottom: number; firstIndex: number; firstRect: DOMRect }> = [];
-    const isPunct = (w: string) => /^[.,:;!?]+$/.test(w);
-
-    let currentTop: number | null = null;
-    let currentBottom: number | null = null;
-    let firstIndex: number | null = null;
-
-    for (let i = 0; i < demoWords.length; i++) {
-      const el = document.querySelector(`.word-${i}`) as HTMLElement | null;
-      if (!el) continue;
-      const r = el.getBoundingClientRect();
-      const top = Math.round(r.top);
-
-      // Start a new line bucket if y has changed significantly
-      if (currentTop === null || Math.abs(top - currentTop) > 8) {
-        if (currentTop !== null && firstIndex !== null) {
-          const firstEl = document.querySelector(`.word-${firstIndex}`) as HTMLElement;
-          const fr = firstEl.getBoundingClientRect();
-          lines.push({ top: currentTop, bottom: currentBottom || fr.bottom, firstIndex, firstRect: fr });
-        }
-        currentTop = top;
-        currentBottom = r.bottom;
-        // choose first non-punctuation token for a line
-        let j = i;
-        while (j < demoWords.length) {
-          const w = demoWords[j];
-          if (!isPunct(w)) break;
-          j += 1;
-        }
-        firstIndex = j;
-      } else {
-        if (r.bottom > (currentBottom || r.bottom)) currentBottom = r.bottom;
-      }
-    }
-
-    if (currentTop !== null && firstIndex !== null) {
-      const firstEl = document.querySelector(`.word-${firstIndex}`) as HTMLElement;
-      const fr = firstEl.getBoundingClientRect();
-      lines.push({ top: currentTop, bottom: currentBottom || fr.bottom, firstIndex, firstRect: fr });
-    }
-
-    lineRectsRef.current = lines;
-  }, []);
-
-  useLayoutEffect(() => {
-    recomputeLineRects();
-    const onResize = () => recomputeLineRects();
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, [recomputeLineRects, annotations]);
-
   // Advanced GSAP animations with particle system
   useEffect(() => {
     const ctx = gsap.context(() => {
@@ -584,112 +383,47 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
   // Enhanced cursor tracking with gesture detection and text area scope
   useEffect(() => {
     let lastY = 0;
-    let lastX = 0;
     let lastTime = Date.now();
-    let lineTransitionActive = false;
     
     const handleMouseMove = (e: MouseEvent) => {
       const x = e.clientX;
       const y = e.clientY;
       const now = Date.now();
       
-      // Enhanced gesture detection for smooth line transitions
-      const deltaX = x - lastX;
-      const deltaY = y - lastY;
-      const deltaTime = now - lastTime;
-      const velocity = Math.sqrt(deltaX * deltaX + deltaY * deltaY) / Math.max(deltaTime, 1);
+      // Gesture detection disabled - using reliable keyboard shortcuts instead
       
       setCursorPosition({ x, y });
       mouseX.set(x);
       mouseY.set(y);
       
-      // Adaptive brush size based on velocity
-      setBrushSize(Math.max(15, Math.min(40, 20 + velocity * 0.3)));
+      // Dynamic brush size based on velocity
+      const velocity = Math.sqrt(
+        Math.pow(x - cursorPosition.x, 2) + Math.pow(y - cursorPosition.y, 2)
+      );
+      setBrushSize(Math.max(15, Math.min(40, 20 + velocity * 0.5)));
       
       if (pencilRef.current && isInTextArea) {
-        const tilt = selectedMode === 'hot' ? 25 : selectedMode === 'flush' ? -25 : velocity * 0.2;
-
-        // Enhanced line-aware movement with predictive transitions
-        const lines = lineRectsRef.current;
-        let shouldSnap = false;
-        let targetX = x - 16;
-        let targetY = y - 16;
-        
-        if (lines.length > 0) {
-          const currentLineIdx = lines.findIndex(l => y >= l.top && y <= l.bottom);
-          
-          // Detect line transitions with hysteresis and direction awareness
-          if (currentLineIdx !== -1 && currentLineIdx !== lastLineIndexRef.current) {
-            const newLine = lines[currentLineIdx];
-            const oldLineIdx = lastLineIndexRef.current;
-            
-            // Check if this is a natural progression (moving down/up logically)
-            const isNaturalProgression = oldLineIdx !== -1 && 
-              ((currentLineIdx === oldLineIdx + 1 && deltaY > 0) || 
-               (currentLineIdx === oldLineIdx - 1 && deltaY < 0));
-            
-            // Enhanced conditions for smooth line snapping
-            if (isNaturalProgression || 
-                Math.abs(deltaY) > 20 || // Significant vertical movement
-                (velocity < 0.5 && Math.abs(y - newLine.top - newLine.firstRect.height/2) < 15)) {
-              
-              lastLineIndexRef.current = currentLineIdx;
-              
-              // Smooth transition to beginning of line (not center)
-              const lineStartX = newLine.firstRect.left - 8; // Slight offset from beginning
-              const lineY = newLine.top + newLine.firstRect.height / 2;
-              
-              targetX = lineStartX - 16;
-              targetY = lineY - 16;
-              shouldSnap = true;
-              lineTransitionActive = true;
-              
-              // Extended but adaptive snap window based on distance
-              const distance = Math.sqrt(Math.pow(targetX - (x - 16), 2) + Math.pow(targetY - (y - 16), 2));
-              snapUntilRef.current = now + Math.min(400, Math.max(200, distance * 2));
-              
-              // Auto-select first word if enabled
-              if (autoSelectEnabled && hasStarted && selectedMode !== 'eraser') {
-                const wi = newLine.firstIndex;
-                if (!annotations.some(a => a.wordIndex === wi)) {
-                  // Delay annotation to allow smooth visual transition
-                  setTimeout(() => handleWordAnnotation(wi, demoWords[wi]), 150);
-                }
-              }
-            }
-          }
-        }
-
-        // Respect snap window with enhanced easing
-        const isInSnapWindow = Date.now() <= snapUntilRef.current;
-        
-        if (!isInSnapWindow) {
-          lineTransitionActive = false;
-        }
-        
-        // Apply movement with context-aware easing
-        const duration = shouldSnap ? 0.25 : (lineTransitionActive ? 0.2 : 0.12);
-        const easeType = shouldSnap ? 'power2.out' : (lineTransitionActive ? 'power1.out' : 'power3.out');
+        // Advanced pencil physics with tilt based on mode
+        const tilt = selectedMode === 'hot' ? 25 : selectedMode === 'flush' ? -25 : velocity * 0.3;
         
         gsap.to(pencilRef.current, {
-          x: isInSnapWindow ? targetX : x - 16,
-          y: isInSnapWindow ? targetY : y - 16,
+          x: x - 16,
+          y: y - 16,
           rotation: tilt,
           scale: isDragging ? 1.2 : 1,
-          duration,
-          ease: easeType,
-          overwrite: 'auto' // Prevent animation conflicts
+          duration: 0.15,
+          ease: "power3.out"
         });
 
+        // Paint trail effect during interaction
         if (isDragging) {
           setPaintTrail(prev => [
-            ...prev.slice(-20),
+            ...prev.slice(-20), // Keep last 20 points
             { x, y, timestamp: Date.now() }
           ]);
         }
       }
       
-      lastX = x;
       lastY = y;
       lastTime = now;
     };
@@ -709,7 +443,7 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
       document.removeEventListener('mousedown', handleMouseDown);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [selectedMode, hasStarted, isDragging, cursorPosition, mouseX, mouseY, isInTextArea, detectGesture, autoSelectEnabled, annotations, handleWordAnnotation]);
+  }, [selectedMode, hasStarted, isDragging, cursorPosition, mouseX, mouseY, isInTextArea, detectGesture]);
 
   // Handle text area entry/exit for cursor scoping
   useEffect(() => {
@@ -846,6 +580,170 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
     );
   };
 
+
+  // Enhanced word annotation for auto-selection with improved eraser
+  const handleWordAnnotation = useCallback((wordIndex: number, word: string, isClick = false) => {
+    console.log(`Annotation attempt: word=${word}, index=${wordIndex}, mode=${selectedMode}, isClick=${isClick}`);
+    
+    // Handle eraser mode - remove existing annotation
+    if (selectedMode === 'eraser') {
+      const existingAnnotation = annotations.find(a => a.wordIndex === wordIndex);
+      console.log('Eraser mode - existing annotation:', existingAnnotation);
+      
+      if (existingAnnotation) {
+        setUndoStack(prev => [...prev, annotations]);
+        setAnnotations(prev => {
+          const filtered = prev.filter(a => a.wordIndex !== wordIndex);
+          console.log('After erasing:', filtered.length, 'annotations remain');
+          return filtered;
+        });
+        playSound('select');
+        
+        // Force clear all styles immediately - both inline and CSS classes
+        const wordElement = document.querySelector(`.word-${wordIndex}`) as HTMLElement;
+        if (wordElement) {
+          // Clear all inline styles that might have been applied
+          wordElement.style.background = '';
+          wordElement.style.border = '';
+          wordElement.style.boxShadow = '';
+          wordElement.style.color = '';
+          wordElement.style.transform = '';
+          wordElement.style.scale = '';
+          wordElement.style.opacity = '';
+          
+          // Kill any ongoing GSAP animations on this element
+          gsap.killTweensOf(wordElement);
+          
+          // Force reset to default state
+          gsap.set(wordElement, {
+            background: 'transparent',
+            border: '1px solid transparent', 
+            boxShadow: 'none',
+            color: 'inherit',
+            scale: 1,
+            rotation: 0,
+            clearProps: "all"
+          });
+        }
+        
+        // Enhanced visual feedback for erasing
+        gsap.timeline()
+          .to(`.word-${wordIndex}`, {
+            scale: 0.6,
+            opacity: 0.3,
+            rotateZ: -10,
+            duration: 0.3,
+            ease: "power2.out"
+          })
+          .to(`.word-${wordIndex}`, {
+            scale: 1,
+            opacity: 1,
+            rotateZ: 0,
+            duration: 0.4,
+            ease: "elastic.out(1, 0.8)"
+          });
+      } else {
+        console.log('No annotation to erase at this word');
+      }
+      return;
+    }
+    
+    // Check if word is already annotated - prevent duplicate annotations
+    if (annotations.some(a => a.wordIndex === wordIndex)) {
+      console.log('Word already annotated, skipping');
+      return;
+    }
+    
+    if (!hasStarted && isClick) {
+      setHasStarted(true);
+      setShowBanner(false);
+      gsap.killTweensOf('.cta-pulse');
+    }
+
+    playSound(isClick ? 'paint' : 'hover');
+    
+    // Calculate text position for this word
+    let charStart = 0;
+    for (let i = 0; i < wordIndex; i++) {
+      charStart += demoWords[i].length;
+    }
+    
+    const newAnnotation: AnnotationData = {
+      id: `${Date.now()}-${wordIndex}`,
+      start: charStart,
+      end: charStart + word.length,
+      type: selectedMode as 'hot' | 'neutral' | 'flush',
+      timestamp: Date.now(),
+      intensity: Math.random() * 0.5 + 0.5, // Random intensity for visual variety
+      wordIndex
+    };
+    
+    setUndoStack(prev => [...prev, annotations]);
+    setAnnotations(prev => [...prev, newAnnotation]);
+    setStreakCount(prev => prev + 1);
+
+    // Create paint particles at click location
+    const rect = textRef.current?.getBoundingClientRect();
+    if (rect) {
+      const newParticles: ParticleEffect[] = Array.from({ length: 8 }, (_, i) => ({
+        id: `particle-${Date.now()}-${i}`,
+        x: cursorPosition.x - rect.left + gsap.utils.random(-10, 10),
+        y: cursorPosition.y - rect.top + gsap.utils.random(-10, 10),
+        type: 'paint',
+        color: selectedMode === 'hot' ? '#ff5733' : selectedMode === 'flush' ? '#3b82f6' : '#94a3b8'
+      }));
+      
+      setParticles(prev => [...prev, ...newParticles]);
+      
+      // Remove particles after animation
+      setTimeout(() => {
+        setParticles(prev => prev.filter(p => !newParticles.find(np => np.id === p.id)));
+      }, 2000);
+    }
+
+    // Paint flow effect: adjacent words get painted with delay using GSAP
+    const adjacentWords = [wordIndex - 1, wordIndex + 1].filter(
+      i => i >= 0 && i < demoWords.length && !annotations.some(a => a.wordIndex === i)
+    );
+
+    adjacentWords.forEach((adjIndex, delay) => {
+      setTimeout(() => {
+        gsap.timeline()
+          .to(`.word-${adjIndex}`, {
+            scale: 1.05,
+            backgroundColor: selectedMode === 'hot' ? 'rgba(255, 87, 51, 0.1)' : 
+                            selectedMode === 'flush' ? 'rgba(59, 130, 246, 0.1)' : 'rgba(148, 163, 184, 0.1)',
+            duration: 0.4,
+            ease: "elastic.out(1, 0.5)"
+          })
+          .to(`.word-${adjIndex}`, {
+            scale: 1,
+            backgroundColor: 'rgba(0, 0, 0, 0)',
+            duration: 0.4,
+            ease: "power2.out"
+          });
+        
+        playSound('hover');
+      }, delay * 200);
+    });
+
+    // Word annotation with liquid morphing effect using GSAP
+    gsap.timeline()
+      .to(`.word-${wordIndex}`, {
+        scale: 1.15,
+        rotateZ: selectedMode === 'hot' ? 2 : selectedMode === 'flush' ? -2 : 0,
+        duration: 0.2,
+        ease: "power2.out"
+      })
+      .to(`.word-${wordIndex}`, {
+        background: modeStyles[selectedMode].bg,
+        color: selectedMode === 'hot' ? '#ff5733' : selectedMode === 'flush' ? '#3b82f6' : selectedMode === 'neutral' ? '#64748b' : '#ef4444',
+        scale: 1,
+        rotateZ: 0,
+        duration: 0.6,
+        ease: "elastic.out(1, 0.8)"
+      });
+  }, [selectedMode, hasStarted, annotations, cursorPosition, playSound]);
 
   // Check for focus achievement
   useEffect(() => {
