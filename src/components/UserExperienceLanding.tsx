@@ -109,7 +109,7 @@ const UserExperienceLanding: React.FC<UserExperienceLandingProps> = ({ onStartAn
             Built for MetaTrap Hackathon 2025
           </Badge>
           
-          <h1 className="hero-title text-6xl md:text-8xl font-bold text-foreground mb-8 leading-tight">
+          <h1 className="hero-title text-6xl md:text-7xl font-bold text-foreground mb-8 leading-tight">
             <span className="bg-gradient-text bg-clip-text text-transparent block">
               FlowControl —
             </span>
