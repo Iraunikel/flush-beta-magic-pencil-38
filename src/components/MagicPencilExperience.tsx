@@ -307,7 +307,7 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
   }, [selectedMode, isInTextArea, hasStarted, playSound]);
 
   // Simplified gesture detection - disabled for reliable interaction
-  const detectGesture = useCallback((velocityyPos: number) => {
+  const detectGesture = useCallback((velocityY: number) => {
     // Gesture detection disabled in favor of keyboard shortcuts
     return;
   }, []);
@@ -847,123 +847,6 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
         }
         
         // Enhanced visual feedback for erasing
-        gsap.timeline()
-          .to(`.word-${wordIndex}`, {
-            scale: 0.6,
-            opacity: 0.3,
-            rotateZ: -10,
-            duration: 0.3,
-            ease: "power2.out"
-          })
-          .to(`.word-${wordIndex}`, {
-            scale: 1,
-            opacity: 1,
-            rotateZ: 0,
-            duration: 0.4,
-            ease: "elastic.out(1, 0.8)"
-          });
-      } else {
-        console.log('No annotation to erase at this word');
-      }
-      return;
-    }
-    
-    // Check if word is already annotated - prevent duplicate annotations
-    if (annotations.some(a => a.wordIndex === wordIndex)) {
-      console.log('Word already annotated, skipping');
-      return;
-    }
-    
-    if (!hasStarted && isClick) {
-      setHasStarted(true);
-      setShowBanner(false);
-      gsap.killTweensOf('.cta-pulse');
-    }
-
-    playSound(isClick ? 'paint' : 'hover');
-    
-    // Calculate text position for this word
-    let charStart = 0;
-    for (let i = 0; i < wordIndex; i++) {
-      charStart += demoWords[i].length;
-    }
-    
-    const newAnnotation: AnnotationData = {
-      id: `${Date.now()}-${wordIndex}`,
-      start: charStart,
-      end: charStart + word.length,
-      type: selectedMode as 'hot' | 'neutral' | 'flush',
-      timestamp: Date.now(),
-      intensity: Math.random() * 0.5 + 0.5, // Random intensity for visual variety
-      wordIndex
-    };
-    
-    setUndoStack(prev => [...prev, annotations]);
-    setAnnotations(prev => [...prev, newAnnotation]);
-    setStreakCount(prev => prev + 1);
-
-    // Create paint particles at click location
-    const rect = textRef.current?.getBoundingClientRect();
-    if (rect) {
-      const newParticles: ParticleEffect[] = Array.from({ length: 8 }, (_, i) => ({
-        id: `particle-${Date.now()}-${i}`,
-        x: cursorPosition.x - rect.left + gsap.utils.random(-10, 10),
-        y: cursorPosition.y - rect.top + gsap.utils.random(-10, 10),
-        type: 'paint',
-        color: selectedMode === 'hot' ? '#ff5733' : selectedMode === 'flush' ? '#3b82f6' : '#94a3b8'
-      }));
-      
-      setParticles(prev => [...prev, ...newParticles]);
-      
-      // Remove particles after animation
-      setTimeout(() => {
-        setParticles(prev => prev.filter(p => !newParticles.find(np => np.id === p.id)));
-      }, 2000);
-    }
-
-    // Paint flow effect: adjacent words get painted with delay using GSAP
-    const adjacentWords = [wordIndex - 1, wordIndex + 1].filter(
-      i => i >= 0 && i < demoWords.length && !annotations.some(a => a.wordIndex === i)
-    );
-
-    adjacentWords.forEach((adjIndex, delay) => {
-      setTimeout(() => {
-        gsap.timeline()
-          .to(`.word-${adjIndex}`, {
-            scale: 1.05,
-            backgroundColor: selectedMode === 'hot' ? 'rgba(255, 87, 51, 0.1)' : 
-                            selectedMode === 'flush' ? 'rgba(59, 130, 246, 0.1)' : 'rgba(148, 163, 184, 0.1)',
-            duration: 0.4,
-            ease: "elastic.out(1, 0.5)"
-          })
-          .to(`.word-${adjIndex}`, {
-            scale: 1,
-            backgroundColor: 'rgba(0, 0, 0, 0)',
-            duration: 0.4,
-            ease: "power2.out"
-          });
-        
-        playSound('hover');
-      }, delay * 200);
-    });
-
-    // Word annotation with liquid morphing effect using GSAP
-    gsap.timeline()
-      .to(`.word-${wordIndex}`, {
-        scale: 1.15,
-        rotateZ: selectedMode === 'hot' ? 2 : selectedMode === 'flush' ? -2 : 0,
-        duration: 0.2,
-        ease: "power2.out"
-      })
-      .to(`.word-${wordIndex}`, {
-        background: modeStyles[selectedMode].bg,
-        color: selectedMode === 'hot' ? '#ff5733' : selectedMode === 'flush' ? '#3b82f6' : selectedMode === 'neutral' ? '#64748b' : '#ef4444',
-        scale: 1,
-        rotateZ: 0,
-        duration: 0.6,
-        ease: "elastic.out(1, 0.8)"
-      });
-  }, [selectedMode, hasStarted, annotations, cursorPosition, playSound]);
 
   // Check for focus achievement
   useEffect(() => {
