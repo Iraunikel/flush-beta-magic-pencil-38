@@ -803,51 +803,6 @@ const MagicPencilExperience: React.FC<MagicPencilExperienceProps> = ({ onStartAn
   };
 
 
-    console.log(`Annotation attempt: word=${word}, index=${wordIndex}, mode=${selectedMode}, isClick=${isClick}`);
-    
-    // Handle eraser mode - remove existing annotation
-    if (selectedMode === 'eraser') {
-      const existingAnnotation = annotations.find(a => a.wordIndex === wordIndex);
-      console.log('Eraser mode - existing annotation:', existingAnnotation);
-      
-      if (existingAnnotation) {
-        setUndoStack(prev => [...prev, annotations]);
-        setAnnotations(prev => {
-          const filtered = prev.filter(a => a.wordIndex !== wordIndex);
-          console.log('After erasing:', filtered.length, 'annotations remain');
-          return filtered;
-        });
-        playSound('select');
-        
-        // Force clear all styles immediately - both inline and CSS classes
-        const wordElement = document.querySelector(`.word-${wordIndex}`) as HTMLElement;
-        if (wordElement) {
-          // Clear all inline styles that might have been applied
-          wordElement.style.background = '';
-          wordElement.style.border = '';
-          wordElement.style.boxShadow = '';
-          wordElement.style.color = '';
-          wordElement.style.transform = '';
-          wordElement.style.scale = '';
-          wordElement.style.opacity = '';
-          
-          // Kill any ongoing GSAP animations on this element
-          gsap.killTweensOf(wordElement);
-          
-          // Force reset to default state
-          gsap.set(wordElement, {
-            background: 'transparent',
-            border: '1px solid transparent', 
-            boxShadow: 'none',
-            color: 'inherit',
-            scale: 1,
-            rotation: 0,
-            clearProps: "all"
-          });
-        }
-        
-        // Enhanced visual feedback for erasing
-
   // Check for focus achievement
   useEffect(() => {
     const stats = analytics();
