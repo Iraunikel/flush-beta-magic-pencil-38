@@ -109,14 +109,14 @@ const UserExperienceLanding: React.FC<UserExperienceLandingProps> = ({ onStartAn
             Built for MetaTrap Hackathon 2025
           </Badge>
           
-          <h1 className="hero-title text-6xl md:text-8xl font-bold text-foreground mb-8 leading-tight">
+          <h1 className="hero-title text-4xl md:text-6xl font-bold text-foreground mb-8 leading-tight">
             <span className="block">
               FlowControl — The Smart Highlighter for AI
             </span>
           </h1>
           
           <p className="hero-subtitle text-lg md:text-xl text-muted-foreground mb-10 max-w-2xl mx-auto leading-relaxed">
-            Effortless tool to mark, refine, and teach your AI visually. Less clutter, more clarity.
+            Effortless tool to mark, refine, and teach your AI visually. Less clutter, more focus and clarity.
           </p>
           
           <div className="hero-cta flex flex-col sm:flex-row gap-4 justify-center items-center">
