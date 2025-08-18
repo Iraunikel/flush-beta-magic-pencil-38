@@ -111,15 +111,12 @@ const UserExperienceLanding: React.FC<UserExperienceLandingProps> = ({ onStartAn
           
           <h1 className="hero-title text-6xl md:text-8xl font-bold text-foreground mb-8 leading-tight">
             <span className="bg-gradient-text bg-clip-text text-transparent block">
-              Magic
-            </span>
-            <span className="text-3xl md:text-4xl text-muted-foreground font-normal leading-snug block mt-2">
-              Transform lengthy prompts into intuitive, efficient AI editing
+              FlowControl — The Smart Highlighter for AI
             </span>
           </h1>
           
           <p className="hero-subtitle text-lg md:text-xl text-muted-foreground mb-10 max-w-2xl mx-auto leading-relaxed">
-            Flush helps you to focus on what’s important and clear the clutter fast.
+            Effortless tool to mark, refine, and teach your AI visually. Less clutter, more clarity.
           </p>
           
           <div className="hero-cta flex flex-col sm:flex-row gap-4 justify-center items-center">
