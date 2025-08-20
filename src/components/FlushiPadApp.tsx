@@ -27,7 +27,7 @@ The next decade will likely bring even more sophisticated AI capabilities, inclu
                 <Zap className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold text-foreground">Flush</h1>
+                <h1 className="text-3xl font-bold text-foreground">Flow Control</h1>
                 <p className="text-lg text-muted-foreground">Clear the noise, focus on what matters</p>
               </div>
             </div>

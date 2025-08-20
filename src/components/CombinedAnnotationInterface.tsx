@@ -92,7 +92,7 @@ const CombinedAnnotationInterface: React.FC<CombinedAnnotationInterfaceProps> = 
       <Card className="p-6">
         <div className="mb-4">
           <div className="text-center space-y-1">
-            <h2 className="text-xl font-bold text-foreground">Flush Beta</h2>
+            <h2 className="text-xl font-bold text-foreground">Flow Control Beta</h2>
             <p className="text-sm text-muted-foreground">Features developed during the hackathon</p>
           </div>
         </div>
@@ -149,7 +149,7 @@ const CombinedAnnotationInterface: React.FC<CombinedAnnotationInterfaceProps> = 
       <Card className="p-6">
         <div className="flex items-center gap-2 mb-4">
           <BarChart3 className="w-5 h-5" />
-          <h3 className="text-lg font-semibold text-foreground">Unified Flush Analytics</h3>
+          <h3 className="text-lg font-semibold text-foreground">Unified Flow Control Analytics</h3>
         </div>
         
         <UnifiedAnalyticsDashboard

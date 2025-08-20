@@ -41,7 +41,7 @@ const FlushHeader: React.FC<FlushHeaderProps> = ({
               <Zap className="w-4 h-4 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-foreground">Flush</h1>
+              <h1 className="text-2xl font-bold text-foreground">Flow Control</h1>
               <p className="text-sm text-muted-foreground">Clear the noise, focus on what matters</p>
             </div>
           </div>

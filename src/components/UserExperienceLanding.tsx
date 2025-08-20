@@ -116,7 +116,7 @@ const UserExperienceLanding: React.FC<UserExperienceLandingProps> = ({ onStartAn
           </h1>
           
           <p className="hero-subtitle text-lg md:text-xl text-muted-foreground mb-10 max-w-2xl mx-auto leading-relaxed">
-            Effortless tool to mark, refine, and teach your AI to understand your requests. Less clutter, more clarity, faster results.
+            Effortless tool to mark, refine, and teach your AI to understand your requests. Less clutter, more clarity, better results.
           </p>
           
           <div className="hero-cta flex flex-col sm:flex-row gap-4 justify-center items-center">

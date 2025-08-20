@@ -19,7 +19,7 @@ const FlushInputExplanation: React.FC = () => {
         <div className="text-center space-y-3">
           <div className="flex items-center justify-center gap-2">
             <Wand2 className="w-6 h-6 text-primary" />
-            <h2 className="text-2xl font-bold text-foreground">How Flush Works</h2>
+            <h2 className="text-2xl font-bold text-foreground">How Flow Control Works</h2>
           </div>
           <p className="text-muted-foreground text-lg max-w-3xl mx-auto leading-relaxed">
             Transform AI responses into refined, personalized outputs using our Magic Pencil annotation system
@@ -43,35 +43,34 @@ const FlushInputExplanation: React.FC = () => {
             </div>
           </div>
 
-          {/* Full App Flow */
-          }
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 text-foreground">
+          {/* Full App Flow - Inactive State */}
+          <div className="space-y-4 opacity-60">
+            <div className="flex items-center gap-2 text-muted-foreground">
               <Bot className="w-5 h-5" />
               <h3 className="font-semibold">Full App Flow</h3>
             </div>
-            <div className="space-y-3">
+            <div className="bg-muted/30 rounded-lg p-4 space-y-3">
               <div className="flex items-start gap-3">
-                <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-xs font-medium text-primary">1</div>
-                <div className="text-sm">
+                <div className="w-6 h-6 rounded-full bg-muted/40 flex items-center justify-center text-xs font-medium text-muted-foreground">1</div>
+                <div className="text-sm text-muted-foreground">
                   <strong>Input:</strong> Upload documents, texts, or simply connect with your AI engine
                 </div>
               </div>
               <div className="flex items-start gap-3">
-                <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-xs font-medium text-primary">2</div>
-                <div className="text-sm">
+                <div className="w-6 h-6 rounded-full bg-muted/40 flex items-center justify-center text-xs font-medium text-muted-foreground">2</div>
+                <div className="text-sm text-muted-foreground">
                   <strong>AI Response:</strong> Connect to AI providers (ChatGPT, Ollama, etc.) for initial content
                 </div>
               </div>
               <div className="flex items-start gap-3">
-                <div className="w-6 h-6 rounded-full bg-accent/20 flex items-center justify-center text-xs font-medium text-accent">3</div>
-                <div className="text-sm">
+                <div className="w-6 h-6 rounded-full bg-muted/40 flex items-center justify-center text-xs font-medium text-muted-foreground">3</div>
+                <div className="text-sm text-muted-foreground">
                   Use intuitive gestures to make editing an effortless flow:
                 </div>
               </div>
               <div className="flex items-start gap-3">
-                <div className="w-6 h-6 rounded-full bg-accent/20 flex items-center justify-center text-xs font-medium text-accent">4</div>
-                <div className="text-sm">
+                <div className="w-6 h-6 rounded-full bg-muted/40 flex items-center justify-center text-xs font-medium text-muted-foreground">4</div>
+                <div className="text-sm text-muted-foreground">
                   <strong>Refined Output:</strong> Get personalized, improved content
                 </div>
               </div>
@@ -109,7 +108,28 @@ const FlushInputExplanation: React.FC = () => {
           </div>
         </div>
 
-        {/* Removed Magic Pencil Features block as requested */}
+        {/* YouTube Video Embed Section */}
+        <div className="space-y-4">
+          <h3 className="font-semibold text-foreground flex items-center gap-2">
+            <MessageSquare className="w-5 h-5" />
+            Watch Flow Control in Action
+          </h3>
+          <div className="bg-muted/30 rounded-lg p-6 text-center space-y-4">
+            <div className="aspect-video bg-muted/50 rounded-lg flex items-center justify-center border-2 border-dashed border-muted-foreground/30">
+              <div className="text-center space-y-2">
+                <div className="w-12 h-12 mx-auto bg-primary/20 rounded-full flex items-center justify-center">
+                  <MessageSquare className="w-6 h-6 text-primary" />
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  YouTube video embed placeholder
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Replace this section with your YouTube video embed code
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </Card>
   );
